@@ -1,0 +1,54 @@
+/* 容器 */
+.noname-gallery-container {
+	position: fixed;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	z-index: 1100;
+	overflow: hidden;
+	user-select: none;
+	touch-action: none;
+}
+
+/* 背景 */
+.noname-gallery-bg {
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	z-index: -1;
+	background: #000;
+	opacity: 0;
+	transition: opacity .3s;
+}
+
+/* 计数器 */
+.noname-gallery-counter {
+	position: absolute;
+	top: 15px;
+	left: 15px;
+	z-index: 1;
+	font-size: 14px;
+	color: #BFBFBF;
+	pointer-events: none;
+}
+
+.noname-gallery-wrap {
+	display: flex;
+	margin: 0;
+	padding: 0;
+}
+
+.noname-gallery-wrap li {
+	width: 100%;
+	height: 100vh;
+	overflow: hidden;
+}
+
+.noname-gallery-img {
+	display: block;
+	transform-origin: left top;
+	cursor: zoom-in;
+}

@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+        content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>noname-gallery</title>
+    <link rel="stylesheet" type="text/css" media="screen" href="src/css/noname-gallery.css">
+    <style>
+        body {
+            margin: 0;
+        }
+
+        h1,
+        h1+p {
+            margin: 0;
+            padding-left: 15px;
+        }
+
+        h1 {
+            padding-top: 15px;
+        }
+
+        .img-box {
+            display: flex;
+            flex-wrap: wrap;
+            padding: 5px 5px 15px 15px;
+        }
+
+        .img-box img {
+            width: 100px;
+            height: 100px;
+            margin: 10px 10px 0 0;
+            object-fit: cover;
+        }
+
+        .checkbox-box {
+            padding: 15px;
+            font-size: 14px;
+            line-height: 20px;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>NonameGallery</h1>
+    <p>JavaScript gallery, ease to use</p>
+
+    <div class="img-box">
+        <img class="img" src="src/images/square1.jpg" alt="">
+        <img class="img" src="src/images/long1.jpg" alt="">
+        <img class="img" src="src/images/long2.jpg" alt="">
+        <img class="img" src="src/images/wide1.jpg" alt="">
+        <img class="img" src="src/images/wide2.jpg" alt="">
+        <img class="img" src="src/images/wide3.jpg" alt="">
+    </div>
+
+    <div class="checkbox-box">
+        <label><input type="checkbox" id="showOpacity" checked> showOpacity</label>
+        <label><input type="checkbox" id="zoomToScreenCenter"> zoomToScreenCenter</label>
+        <label><input type="checkbox" id="verticalZoom"> verticalZoom</label>
+    </div>
+
+    <script src="src/js/noname-gallery.js"></script>
+    <script>
+        // 初始化变量
+        const options = {};
+        const box = document.querySelector('.checkbox-box');
+        const imgBox = document.querySelector('.img-box');
+        const imgList = document.querySelectorAll('.img')
+        const imgElementList = [];
+        for (const item of imgList) {
+            imgElementList.push(item);
+        }
+        options.list = imgElementList;
+
+        // checkbox change事件委托
+        box.addEventListener('change', function (e) {
+            options[e.target.id] = e.target.checked;
+        });
+
+        // img click事件委托
+        imgBox.addEventListener('click', function (e) {
+            if (e.target.tagName === 'IMG') {
+                // 类数组调用数组方法
+                options.index = [].indexOf.call(e.target.parentNode.children, e.target);
+                // options.index = imgElementList.indexOf(e.target);
+                // 初始化gallery
+                nonameGallery.init(options);
+            }
+        });
+    </script>
+</body>
+
+</html>
