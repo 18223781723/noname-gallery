@@ -3,6 +3,7 @@ const nonameGallery = {
 	bg: null, // 背景 .noname-gallery-bg
 	wrap: null, // 包裹图片容器 .noname-gallery-wrap
 	counter: null, // 计数器 当前第几张图片/图片总数
+	imgList: null, // 预览图片列表
 	// 全局变量
 	data: {
 		windowWidth: window.innerWidth, // 屏幕宽度
@@ -27,8 +28,7 @@ const nonameGallery = {
 		 */
 		previewList: [], // 预览图片列表
 		index: 0, // 预览图片索引
-		direction: '', // 方向 v: vertical h: horizontal
-		dragTarget: '', // wrap，img
+		wrapWidth: 0, // wrap 宽度
 		wrapTranslateX: 0, // wrap x轴偏移量
 		scale: 1, // 当前图片缩放值
 		translate: { x: 0, y: 0 }, // 当前图片旋转中心（已设置为左上角）相对屏幕左上角偏移值
@@ -39,7 +39,9 @@ const nonameGallery = {
 		lastMove: { x: 0, y: 0 }, // 上一次移动
 		lastCenter: null, // 上一次中心位置
 		lastDistanceRatio: 1, // 上一次距离比例
-		clickCount: 0, // 点击次数 1 = 单击 大于1 = 双击 
+		clickCount: 0, // 点击次数 1 = 单击 大于1 = 双击
+		direction: '', // 方向 v: vertical h: horizontal
+		dragTarget: '', // wrap，img
 		isMousedown: false, // 是否按下鼠标
 		singleClickTimer: null, // 计时器
 		touchstartTime: null, // touchstart时间戳
@@ -64,62 +66,71 @@ const nonameGallery = {
 
 		this.setWindowSize();
 
-		this.setPropertiesBeforeRender();
+		this.setPreviewList();
 
-		this.render(options);
+		this.render();
 
-		this.setPropertiesAfterRender();
+		this.setProperties();
 
 		this.open();
 
 		this.bindEventListener();
 	},
 	/**
-	 * 设置属性值
+	 * 设置previewList
 	 */
-	setPropertiesBeforeRender: function () {
+	setPreviewList: function () {
 		// 渲染之前先保存缩略图的getBoundingClientRect信息
 		this.data.previewList = [];
-		for (const item of this.options.list) {
-			const rect = item.getBoundingClientRect();
+		for (let i = 0; i < this.options.list.length; i++) {
+			const element = this.options.list[i];
+			const rect = element.getBoundingClientRect();
 			// 计算预览图片显示宽高
-			const result = this.getImgSize(item.naturalWidth, item.naturalHeight);
-			this.data.previewList.push({
-				x: Math.round((this.data.windowWidth - result.width) / 2),
-				y: Math.round((this.data.windowHeight - result.height) / 2),
-				width: Math.round(result.width),
-				height: Math.round(result.height),
-				thumbnail: {
-					x: Math.round(rect.left),
-					y: Math.round(rect.top),
-					width: Math.round(rect.width),
-					height: Math.round(rect.height),
-					scale: this.decimal(rect.width / result.width, 3)
-				}
-			})
+			const result = this.getImgSize(element.naturalWidth, element.naturalHeight);
+			let maxScale = this.decimal(element.naturalWidth / result.width, 3);
+			if (maxScale < this.data.maxScale) {
+				maxScale = this.data.maxScale;
+			}
+			this.data.previewList[i] = {};
+			const item = this.data.previewList[i];
+			item.x = Math.round((this.data.windowWidth - result.width) / 2);
+			item.y = Math.round((this.data.windowHeight - result.height) / 2);
+			item.width = Math.round(result.width);
+			item.height = Math.round(result.height);
+			item.maxWidth = Math.round(result.width * maxScale);
+			item.maxHeight = Math.round(result.height * maxScale);
+			item.maxScale = maxScale;
+			item.thumbnail = {};
+			item.thumbnail.x = Math.round(rect.left);
+			item.thumbnail.y = Math.round(rect.top);
+			item.thumbnail.width = Math.round(rect.width);
+			item.thumbnail.height = Math.round(rect.height);
+			item.thumbnail.scale = this.decimal(rect.width / result.width, 3);
 		}
 		this.data.index = this.options.index;
+		const item = this.data.previewList[this.data.index];
+		this.setTranslateScale(item.x, item.y, 1);
+		// wrap
+		this.data.wrapWidth = this.data.previewList.length * this.data.windowWidth;
+		this.data.wrapTranslateX = this.data.index * this.data.windowWidth * -1;
 	},
 	/**
 	 * 渲染
-	 * @param {object} options 
 	 */
-	render: function (options) {
-		this.data.wrapTranslateX = options.index * this.data.windowWidth * -1;
-
+	render: function () {
 		let html = '<div class="noname-gallery-container">'
 			+ '<div class="noname-gallery-bg"></div>'
-			+ '<div class="noname-gallery-counter">' + (options.index + 1) + ' / ' + options.list.length + '</div>'
-			+ '<ul class="noname-gallery-wrap" style="width: ' + (options.list.length * this.data.windowWidth)
+			+ '<div class="noname-gallery-counter">' + (this.options.index + 1) + ' / ' + this.options.list.length + '</div>'
+			+ '<ul class="noname-gallery-wrap" style="width: ' + this.data.wrapWidth
 			+ 'px; transform: translate3d(' + this.data.wrapTranslateX + 'px, 0, 0)">';
 
-		for (let i = 0; i < options.list.length; i++) {
+		for (let i = 0; i < this.options.list.length; i++) {
 			// 预览图片列表项
 			const item = this.data.previewList[i];
 
 			let cssText = 'width: ' + item.width + 'px;';
 			cssText += 'height: ' + item.height + 'px;';
-			if (options.index === i) {
+			if (this.data.index === i) {
 				cssText += 'transform: translate3d(' + item.thumbnail.x + 'px, ' + item.thumbnail.y + 'px, 0) scale(' + item.thumbnail.scale + ');';
 			} else {
 				cssText += 'transform: translate3d(' + item.x + 'px, ' + item.y + 'px, 0) scale(1);';
@@ -127,7 +138,7 @@ const nonameGallery = {
 			cssText += 'transition: transform .3s, opacity .3s;';
 
 			html += '<li>'
-				+ '<img class="noname-gallery-img" src="' + options.list[i].src + '" alt="" style="' + cssText + '">'
+				+ '<img class="noname-gallery-img" src="' + this.options.list[i].src + '" alt="" style="' + cssText + '">'
 				+ '</li>';
 		}
 		html += '</ul></div>';
@@ -137,27 +148,15 @@ const nonameGallery = {
 	/**
 	 * 设置属性值
 	 */
-	setPropertiesAfterRender: function () {
+	setProperties: function () {
 		this.container = document.querySelector('.noname-gallery-container');
 		this.wrap = document.querySelector('.noname-gallery-wrap');
 		this.bg = document.querySelector('.noname-gallery-bg');
 		this.counter = document.querySelector('.noname-gallery-counter');
-
-		const list = document.querySelectorAll('.noname-gallery-img');
-		for (let i = 0; i < list.length; i++) {
-			const item = this.data.previewList[i];
-			item.element = list[i];
-			// 放大倍数
-			item.maxScale = this.decimal(item.element.naturalWidth / item.width, 3);
-			if (item.maxScale < this.data.maxScale) {
-				item.maxScale = this.data.maxScale;
-			}
-			// 图片放大后的宽高
-			item.maxWidth = Math.round(item.width * item.maxScale);
-			item.maxHeight = Math.round(item.height * item.maxScale);
+		this.imgList = document.querySelectorAll('.noname-gallery-img');
+		for (let i = 0; i < this.imgList.length; i++) {
+			this.data.previewList[i].element = this.imgList[i];
 		}
-		// 初始值
-		this.setTranslateScale(this.data.previewList[this.data.index].x, this.data.previewList[this.data.index].y, 1);
 	},
 	/**
 	 * 打开
@@ -284,7 +283,7 @@ const nonameGallery = {
 			this.handleMoveEnd();
 			if (this.data.clickCount !== 0) {
 				if (e.target.className === 'noname-gallery-img') {
-					this.zoom({ x: e.clientX, y: e.clientY });
+					this.handleZoom({ x: e.clientX, y: e.clientY });
 				} else {
 					this.close();
 				}
@@ -329,7 +328,7 @@ const nonameGallery = {
 		if (e.touches.length === 1) {
 			this.mouseOrTouchMove(e);
 		} else if (e.touches.length === 2) { // 双指缩放
-			this.pinch(e);
+			this.handlePinch(e);
 		}
 	},
 	/**
@@ -354,7 +353,7 @@ const nonameGallery = {
 					}, 300);
 				} else if (this.data.clickCount > 1) {
 					this.data.clickCount = 0;
-					this.zoom(this.data.start);
+					this.handleZoom(this.data.start);
 				}
 			}
 		} else if (e.touches.length === 1) {
@@ -374,7 +373,7 @@ const nonameGallery = {
 	 * @param {number} point.x
 	 * @param {number} point.y
 	 */
-	zoom: function (point) {
+	handleZoom: function (point) {
 		const item = this.data.previewList[this.data.index];
 		// 放至最大
 		if (this.data.scale === 1) {
@@ -421,12 +420,12 @@ const nonameGallery = {
 			this.setTranslateScale(x, y, item.maxScale);
 			item.element.style.transition = 'transform .3s, opacity .3s';
 			item.element.style.transform = 'translate3d(' + x + 'px,' + y + 'px, 0) scale(' + item.maxScale + ')';
-			item.element.style.cursor = 'zoom-out';
+			item.element.style.cursor = 'handleZoom-out';
 		} else { // 复原
 			this.setTranslateScale(item.x, item.y, 1);
 			item.element.style.transition = 'transform .3s, opacity .3s';
 			item.element.style.transform = 'translate3d(' + item.x + 'px,' + item.y + 'px, 0) scale(1)';
-			item.element.style.cursor = 'zoom-in';
+			item.element.style.cursor = 'handleZoom-in';
 		}
 	},
 	/**
@@ -453,7 +452,7 @@ const nonameGallery = {
 	/**
 	 * 双指缩放、移动
 	 */
-	pinch: function (e) {
+	handlePinch: function (e) {
 		// 如果dragTarget = 'wrap' 或者下滑关闭时，禁止双指缩放
 		if (this.data.dragTarget === 'wrap' || this.data.direction === 'v') return;
 		this.data.lastTwoFingersTime = Date.now();
@@ -635,12 +634,15 @@ const nonameGallery = {
 			if (this.data.direction === 'v') {
 				const diffX = this.data.translate.x - item.x;
 				const diffY = this.data.translate.y - item.y;
-				const opacity = 1 - (Math.abs(diffY) / (this.data.windowHeight / 2));
+				let opacity = 1 - (Math.abs(diffY) / (this.data.windowHeight / 1.6));
+				if (opacity < 0) {
+					opacity = 0;
+				}
 				let x, y, scale;
 				if (this.options.verticalZoom) {
-					x = item.x + diffX + (item.width - item.width * opacity) / 2;
-					y = item.y + diffY + (item.height - item.height * opacity) / 2;
 					scale = opacity;
+					x = item.x + diffX + (item.width - item.width * scale) / 2;
+					y = item.y + diffY + (item.height - item.height * scale) / 2;
 				} else {
 					x = item.x;
 					y = item.y + diffY;
@@ -703,7 +705,7 @@ const nonameGallery = {
 				if (lastScale !== 1) {
 					lastItem.element.style.transition = 'transform .3s, opacity .3s';
 					lastItem.element.style.transform = 'translate3d(' + lastItem.x + 'px, ' + lastItem.y + 'px, 0) scale(1)';
-					lastItem.element.style.cursor = 'zoom-in';
+					lastItem.element.style.cursor = 'handleZoom-in';
 				}
 			}
 		}
@@ -798,34 +800,23 @@ const nonameGallery = {
 		this.data.windowHeight = window.innerHeight;
 	},
 	/**
-	 * 窗口大小变化
+	 * 窗口大小变化旋转时触发
 	 */
 	handleResize: function () {
 		this.setWindowSize();
-		for (const item of this.data.previewList) {
-			// 计算预览图片显示宽高
-			const result = this.getImgSize(item.element.naturalWidth, item.element.naturalHeight);
-			item.x = Math.round((this.data.windowWidth - result.width) / 2);
-			item.y = Math.round((this.data.windowHeight - result.height) / 2);
-			item.width = Math.round(result.width);
-			item.height = Math.round(result.height);
-			item.maxScale = this.decimal(item.element.naturalWidth / item.width, 3);
-			if (item.maxScale < this.data.maxScale) {
-				item.maxScale = this.data.maxScale;
-			}
-			item.maxWidth = item.width * item.maxScale;
-			item.maxHeight = item.height * item.maxScale;
+		this.setPreviewList();
+		for (let i = 0; i < this.imgList.length; i++) {
+			const item = this.data.previewList[i];
+			item.element = this.imgList[i];
 			item.element.style.width = item.width + 'px';
 			item.element.style.height = item.height + 'px';
 			item.element.style.transform = 'translate3d(' + item.x + 'px, ' + item.y + 'px, 0) scale(1)';
 			item.element.style.transition = 'none';
-			item.element.style.cursor = 'zoom-in';
+			item.element.style.cursor = 'handleZoom-in';
 		}
-		this.data.wrapTranslateX = (this.data.windowWidth * this.data.index * -1);
-		this.wrap.style.width = this.data.previewList.length * this.data.windowWidth + 'px';
-		this.wrap.style.transform = 'translate3d(' + (this.data.wrapTranslateX) + 'px, 0, 0)';
+		this.wrap.style.width = this.data.wrapWidth + 'px';
+		this.wrap.style.transform = 'translate3d(' + this.data.wrapTranslateX + 'px, 0, 0)';
 		this.wrap.style.transition = 'none';
-		const item = this.data.previewList[this.data.index];
-		this.setTranslateScale(item.x, item.y, 1);
+		this.data.clickCount = 0;
 	}
 }
