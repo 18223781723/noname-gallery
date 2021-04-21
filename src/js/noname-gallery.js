@@ -634,7 +634,7 @@ const nonameGallery = {
 			if (this.data.direction === 'v') {
 				const diffX = this.data.translate.x - item.x;
 				const diffY = this.data.translate.y - item.y;
-				let opacity = 1 - (Math.abs(diffY) / (this.data.windowHeight / 1.6));
+				let opacity = 1 - (Math.abs(diffY) / (this.data.windowHeight / 1.2));
 				if (opacity < 0) {
 					opacity = 0;
 				}
