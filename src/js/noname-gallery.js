@@ -420,12 +420,12 @@ const nonameGallery = {
 			this.setTranslateScale(x, y, item.maxScale);
 			item.element.style.transition = 'transform .3s, opacity .3s';
 			item.element.style.transform = 'translate3d(' + x + 'px,' + y + 'px, 0) scale(' + item.maxScale + ')';
-			item.element.style.cursor = 'handleZoom-out';
+			item.element.style.cursor = 'zoom-out';
 		} else { // 复原
 			this.setTranslateScale(item.x, item.y, 1);
 			item.element.style.transition = 'transform .3s, opacity .3s';
 			item.element.style.transform = 'translate3d(' + item.x + 'px,' + item.y + 'px, 0) scale(1)';
-			item.element.style.cursor = 'handleZoom-in';
+			item.element.style.cursor = 'zoom-in';
 		}
 	},
 	/**
@@ -705,7 +705,7 @@ const nonameGallery = {
 				if (lastScale !== 1) {
 					lastItem.element.style.transition = 'transform .3s, opacity .3s';
 					lastItem.element.style.transform = 'translate3d(' + lastItem.x + 'px, ' + lastItem.y + 'px, 0) scale(1)';
-					lastItem.element.style.cursor = 'handleZoom-in';
+					lastItem.element.style.cursor = 'zoom-in';
 				}
 			}
 		}
@@ -812,7 +812,7 @@ const nonameGallery = {
 			item.element.style.height = item.height + 'px';
 			item.element.style.transform = 'translate3d(' + item.x + 'px, ' + item.y + 'px, 0) scale(1)';
 			item.element.style.transition = 'none';
-			item.element.style.cursor = 'handleZoom-in';
+			item.element.style.cursor = 'zoom-in';
 		}
 		this.wrap.style.width = this.data.wrapWidth + 'px';
 		this.wrap.style.transform = 'translate3d(' + this.data.wrapTranslateX + 'px, 0, 0)';

@@ -21,7 +21,6 @@
 	z-index: -1;
 	background: #000;
 	opacity: 0;
-	transition: opacity .3s;
 }
 
 /* 计数器 */

@@ -64,7 +64,7 @@
     </div>
 
     <script src="src/js/noname-gallery.js"></script>
-    <!-- <script src="dist/noname-gallery.js"></script> -->
+    <script src="dist/noname-gallery.js"></script>
     <script>
         // 初始化变量
         const options = {};
@@ -89,7 +89,9 @@
                 options.index = [].indexOf.call(e.target.parentNode.children, e.target);
                 // options.index = imgElementList.indexOf(e.target);
                 // 初始化gallery
-                nonameGallery.init(options);
+                const gallery = new NonameGallery(options);
+                gallery.init();
+                // nonameGallery.init(options);
             }
         });
     </script>
