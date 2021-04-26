@@ -8,8 +8,6 @@ const nonameGallery = {
 	data: {
 		windowWidth: window.innerWidth, // 屏幕宽度
 		windowHeight: window.innerHeight, // 屏幕高度
-		maxScale: 1.5, // 默认放大1.5倍
-		minScale: 0.7, // 双指缩放最小倍数
 		/**
 		 * previewList列表项属性介绍
 		 * element HTMLImageElement
@@ -55,6 +53,10 @@ const nonameGallery = {
 		showOpacity: true, // 淡入淡出
 		zoomToScreenCenter: false, // 将放大区域移动到屏幕中心显示
 		verticalZoom: false, // 垂直滑动缩放图片
+		escToClose: true,
+		minScale: 1.5, // 最小放大倍数
+		duration: 300,
+		animation: 'transition', // todo
 	},
 	/**
 	 * 初始化
@@ -88,8 +90,8 @@ const nonameGallery = {
 			// 计算预览图片显示宽高
 			const result = this.getImgSize(element.naturalWidth, element.naturalHeight);
 			let maxScale = this.decimal(element.naturalWidth / result.width, 3);
-			if (maxScale < this.data.maxScale) {
-				maxScale = this.data.maxScale;
+			if (maxScale < this.options.minScale) {
+				maxScale = this.options.minScale;
 			}
 			this.data.previewList[i] = {};
 			const item = this.data.previewList[i];
@@ -119,7 +121,7 @@ const nonameGallery = {
 	 */
 	render: function () {
 		let html = '<div class="noname-gallery-container">'
-			+ '<div class="noname-gallery-bg"></div>'
+			+ '<div class="noname-gallery-bg" style="transition: opacity ' + this.options.duration + 'ms;"></div>'
 			+ '<div class="noname-gallery-counter">' + (this.options.index + 1) + ' / ' + this.options.list.length + '</div>'
 			+ '<ul class="noname-gallery-wrap" style="width: ' + this.data.wrapWidth
 			+ 'px; transform: translate3d(' + this.data.wrapTranslateX + 'px, 0, 0)">';
@@ -135,7 +137,7 @@ const nonameGallery = {
 			} else {
 				cssText += 'transform: translate3d(' + item.x + 'px, ' + item.y + 'px, 0) scale(1);';
 			}
-			cssText += 'transition: transform .3s, opacity .3s;';
+			cssText += 'transition: transform ' + this.options.duration + 'ms, opacity ' + this.options.duration + 'ms;';
 
 			html += '<li>'
 				+ '<img class="noname-gallery-img" src="' + this.options.list[i].src + '" alt="" style="' + cssText + '">'
@@ -181,7 +183,7 @@ const nonameGallery = {
 	close: function () {
 		const item = this.data.previewList[this.data.index];
 
-		item.element.style.transition = 'transform .3s, opacity .3s';
+		item.element.style.transition = 'transform ' + this.options.duration + 'ms, opacity ' + this.options.duration + 'ms';
 		item.element.style.transform = 'translate3d(' + item.thumbnail.x + 'px, ' + item.thumbnail.y + 'px, 0) scale(' + item.thumbnail.scale + ')';
 		if (this.options.showOpacity) {
 			item.element.style.opacity = '0';
@@ -193,7 +195,7 @@ const nonameGallery = {
 		setTimeout(() => {
 			// 移除dom
 			this.container.remove();
-		}, 300);
+		}, this.options.duration);
 	},
 	/**
 	 * 绑定事件
@@ -207,6 +209,7 @@ const nonameGallery = {
 		this.handleTouchend = this.handleTouchend.bind(this);
 		this.handleTouchcancel = this.handleTouchcancel.bind(this);
 		this.handleResize = this.handleResize.bind(this);
+		this.handleKeydown = this.handleKeydown.bind(this);
 
 		document.addEventListener('mousedown', this.handleMousedown);
 		document.addEventListener('mousemove', this.handleMousemove);
@@ -217,6 +220,7 @@ const nonameGallery = {
 		this.container.addEventListener('touchcancel', this.handleTouchcancel);
 		window.addEventListener('resize', this.handleResize);
 		window.addEventListener('orientationchange', this.handleResize);
+		window.addEventListener('keydown', this.handleKeydown);
 	},
 	/**
 	 * 移除事件
@@ -231,6 +235,7 @@ const nonameGallery = {
 		this.container.removeEventListener('touchcancel', this.handleTouchcancel);
 		window.removeEventListener('resize', this.handleResize);
 		window.removeEventListener('orientationchange', this.handleResize);
+		window.removeEventListener('keydown', this.handleKeydown);
 	},
 	/**
 	 * 设置当前图片坐标和缩放值
@@ -269,7 +274,7 @@ const nonameGallery = {
 		if (this.data.isMousedown) {
 			this.data.clickCount = 0;
 			this.data.lastMoveTime = Date.now();
-			this.mouseOrTouchMove(e);
+			this.handleMove(e);
 		}
 	},
 	/**
@@ -326,7 +331,7 @@ const nonameGallery = {
 		this.data.clickCount = 0;
 		// 一根手指
 		if (e.touches.length === 1) {
-			this.mouseOrTouchMove(e);
+			this.handleMove(e);
 		} else if (e.touches.length === 2) { // 双指缩放
 			this.handlePinch(e);
 		}
@@ -366,6 +371,35 @@ const nonameGallery = {
 	handleTouchcancel: function () {
 		// 微信浏览器长按呼出菜单
 		this.data.clickCount = 0;
+	},
+	/**
+	 * 窗口大小变化旋转时触发
+	 */
+	handleResize: function () {
+		this.setWindowSize();
+		this.setPreviewList();
+		for (let i = 0; i < this.imgList.length; i++) {
+			const item = this.data.previewList[i];
+			item.element = this.imgList[i];
+			item.element.style.width = item.width + 'px';
+			item.element.style.height = item.height + 'px';
+			item.element.style.transform = 'translate3d(' + item.x + 'px, ' + item.y + 'px, 0) scale(1)';
+			item.element.style.transition = 'none';
+			item.element.style.cursor = 'zoom-in';
+		}
+		this.wrap.style.width = this.data.wrapWidth + 'px';
+		this.wrap.style.transform = 'translate3d(' + this.data.wrapTranslateX + 'px, 0, 0)';
+		this.wrap.style.transition = 'none';
+		this.data.clickCount = 0;
+	},
+	/**
+	 * esc退出
+	 * @param {*} e 
+	 */
+	handleKeydown: function (e) {
+		if (this.options.escToClose && e.keyCode === 27) {
+			this.close();
+		}
 	},
 	/**
 	 * 最大/复原
@@ -418,12 +452,12 @@ const nonameGallery = {
 				y = Math.round((this.data.windowHeight - item.maxHeight) / 2);
 			}
 			this.setTranslateScale(x, y, item.maxScale);
-			item.element.style.transition = 'transform .3s, opacity .3s';
+			item.element.style.transition = 'transform ' + this.options.duration + 'ms, opacity ' + this.options.duration + 'ms';
 			item.element.style.transform = 'translate3d(' + x + 'px,' + y + 'px, 0) scale(' + item.maxScale + ')';
 			item.element.style.cursor = 'zoom-out';
 		} else { // 复原
 			this.setTranslateScale(item.x, item.y, 1);
-			item.element.style.transition = 'transform .3s, opacity .3s';
+			item.element.style.transition = 'transform ' + this.options.duration + 'ms, opacity ' + this.options.duration + 'ms';
 			item.element.style.transform = 'translate3d(' + item.x + 'px,' + item.y + 'px, 0) scale(1)';
 			item.element.style.cursor = 'zoom-in';
 		}
@@ -431,7 +465,7 @@ const nonameGallery = {
 	/**
 	 * 鼠标或单指移动
 	 */
-	mouseOrTouchMove: function (e) {
+	handleMove: function (e) {
 		const x = e.type === 'touchmove' ? e.touches[0].clientX : e.clientX;
 		const y = e.type === 'touchmove' ? e.touches[0].clientY : e.clientY;
 		this.data.step.x = x - this.data.lastMove.x;
@@ -446,7 +480,11 @@ const nonameGallery = {
 			// 获取移动目标
 			this.getDragTarget();
 			// 处理移动中
-			this.handleMove();
+			if (this.data.dragTarget === 'wrap') {
+				this.handleWrapMove();
+			} else {
+				this.handleImgMove();
+			}
 		}
 	},
 	/**
@@ -467,8 +505,8 @@ const nonameGallery = {
 		if (this.data.scale > item.maxScale) {
 			this.data.scale = item.maxScale;
 			ratio = 1;
-		} else if (this.data.scale < this.data.minScale) {
-			this.data.scale = this.data.minScale;
+		} else if (this.data.scale < 0.7) {
+			this.data.scale = 0.7;
 			ratio = 1;
 		}
 		this.data.lastDistanceRatio = distanceRatio;
@@ -481,7 +519,15 @@ const nonameGallery = {
 			this.data.translate.y = this.data.translate.y + center.y - this.data.lastCenter.y;
 		}
 		this.data.lastCenter = center;
-		// 边界判断
+		// 处理边界
+		this.handleBoundary(item);
+		item.element.style.transition = 'none';
+		item.element.style.transform = 'translate3d(' + this.data.translate.x + 'px, ' + this.data.translate.y + 'px, 0) scale(' + this.data.scale + ')';
+	},
+	/**
+	 * 处理边界
+	 */
+	handleBoundary: function (item) {
 		const scaleWidth = this.data.scale * item.width;
 		const scaleHeight = this.data.scale * item.height;
 		if (scaleWidth > this.data.windowWidth) {
@@ -502,8 +548,6 @@ const nonameGallery = {
 		} else {
 			this.data.translate.y = (this.data.windowHeight - scaleHeight) / 2;
 		}
-		item.element.style.transition = 'none';
-		item.element.style.transform = 'translate3d(' + this.data.translate.x + 'px, ' + this.data.translate.y + 'px, 0) scale(' + this.data.scale + ')';
 	},
 	/**
 	 * 获取两点距离
@@ -582,29 +626,19 @@ const nonameGallery = {
 		}
 	},
 	/**
-	 * 处理移动中
-	 */
-	handleMove: function () {
-		if (this.data.dragTarget === 'wrap') {
-			this.wrapMove();
-		} else {
-			this.imgMove();
-		}
-	},
-	/**
 	 * 处理移动结束
 	 */
 	handleMoveEnd: function () {
 		if (this.data.dragTarget === 'wrap') {
-			this.wrapMoveEnd();
+			this.handleWrapMoveEnd();
 		} else {
-			this.imgMoveEnd();
+			this.handleImgMoveEnd();
 		}
 	},
 	/**
 	 * 处理wrap移动
 	 */
-	wrapMove: function () {
+	handleWrapMove: function () {
 		// 左右边界滑动时，增加阻力
 		if ((this.data.step.x > 0 && this.data.wrapTranslateX > 0) ||
 			(this.data.step.x < 0 && this.data.wrapTranslateX < (this.data.previewList.length - 1) * this.data.windowWidth * - 1)) {
@@ -626,7 +660,7 @@ const nonameGallery = {
 	/**
 	 * 处理img移动
 	 */
-	imgMove: function () {
+	handleImgMove: function () {
 		this.data.translate.x += this.data.step.x;
 		this.data.translate.y += this.data.step.y;
 		const item = this.data.previewList[this.data.index];
@@ -654,26 +688,7 @@ const nonameGallery = {
 				item.element.style.transform = 'translate3d(' + x + 'px, ' + y + 'px , 0) scale(' + scale + ')';
 			}
 		} else {
-			const scaleWidth = item.width * this.data.scale;
-			const scaleHeight = item.height * this.data.scale;
-			if (scaleWidth > this.data.windowWidth) {
-				if (this.data.translate.x > 0) {
-					this.data.translate.x = 0;
-				} else if (this.data.translate.x < this.data.windowWidth - scaleWidth) {
-					this.data.translate.x = this.data.windowWidth - scaleWidth;
-				}
-			} else {
-				this.data.translate.x = (this.data.windowWidth - scaleWidth) / 2;
-			}
-			if (scaleHeight > this.data.windowHeight) {
-				if (this.data.translate.y > 0) {
-					this.data.translate.y = 0;
-				} else if (this.data.translate.y < this.data.windowHeight - scaleHeight) {
-					this.data.translate.y = this.data.windowHeight - scaleHeight;
-				}
-			} else {
-				this.data.translate.y = (this.data.windowHeight - scaleHeight) / 2;
-			}
+			this.handleBoundary(item);
 			item.element.style.transition = 'none';
 			item.element.style.transform = 'translate3d(' + Math.round(this.data.translate.x) + 'px, '
 				+ Math.round(this.data.translate.y) + 'px, 0) scale(' + this.data.scale + ')';
@@ -682,7 +697,7 @@ const nonameGallery = {
 	/**
 	 * wrap移动结束
 	 */
-	wrapMoveEnd: function () {
+	handleWrapMoveEnd: function () {
 		const MIN_SWIPE_DISTANCE = Math.round(this.data.windowWidth * 0.15);
 		const lastScale = this.data.scale;
 		const lastIndex = this.data.index;
@@ -703,21 +718,21 @@ const nonameGallery = {
 				const item = this.data.previewList[this.data.index];
 				this.setTranslateScale(item.x, item.y, 1);
 				if (lastScale !== 1) {
-					lastItem.element.style.transition = 'transform .3s, opacity .3s';
+					lastItem.element.style.transition = 'transform ' + this.options.duration + 'ms, opacity ' + this.options.duration + 'ms';
 					lastItem.element.style.transform = 'translate3d(' + lastItem.x + 'px, ' + lastItem.y + 'px, 0) scale(1)';
 					lastItem.element.style.cursor = 'zoom-in';
 				}
 			}
 		}
 		this.data.wrapTranslateX = this.data.windowWidth * this.data.index * -1;
-		this.wrap.style.transition = 'transform .3s';
+		this.wrap.style.transition = 'transform ' + this.options.duration + 'ms';
 		this.wrap.style.transform = 'translate3d(' + this.data.wrapTranslateX + 'px, 0, 0)';
 		this.counter.innerHTML = (this.data.index + 1) + ' / ' + this.data.previewList.length;
 	},
 	/**
 	 * img移动结束
 	 */
-	imgMoveEnd: function () {
+	handleImgMoveEnd: function () {
 		const MIN_CLOSE_DISTANCE = Math.round(this.data.windowHeight * 0.15);
 		const item = this.data.previewList[this.data.index];
 		const diffY = this.data.translate.y - item.y;
@@ -725,7 +740,7 @@ const nonameGallery = {
 			this.close();
 		}
 		if (this.data.scale < 1 || (this.data.scale === 1 && this.data.direction === 'v' && Math.abs(diffY) < MIN_CLOSE_DISTANCE)) {
-			item.element.style.transition = 'transform .3s, opacity .3s';
+			item.element.style.transition = 'transform ' + this.options.duration + 'ms, opacity ' + this.options.duration + 'ms';
 			item.element.style.transform = 'translate3d(' + item.x + 'px, ' + item.y + 'px, 0) scale(1)';
 			this.bg.style.opacity = '1';
 			this.setTranslateScale(item.x, item.y, 1);
@@ -741,30 +756,10 @@ const nonameGallery = {
 		if (scaleWidth <= this.data.windowWidth && scaleHeight <= this.data.windowHeight) {
 			return;
 		}
-
 		this.data.translate.x += this.data.step.x * 15;
 		this.data.translate.y += this.data.step.y * 15;
-
-		if (scaleWidth > this.data.windowWidth) {
-			if (this.data.translate.x > 0) {
-				this.data.translate.x = 0;
-			} else if (this.data.translate.x < this.data.windowWidth - scaleWidth) {
-				this.data.translate.x = this.data.windowWidth - scaleWidth;
-			}
-		} else {
-			this.data.translate.x = (this.data.windowWidth - scaleWidth) / 2;
-		}
-
-		if (scaleHeight > this.data.windowHeight) {
-			if (this.data.translate.y > 0) {
-				this.data.translate.y = 0;
-			} else if (this.data.translate.y < this.data.windowHeight - scaleHeight) {
-				this.data.translate.y = this.data.windowHeight - scaleHeight;
-			}
-		} else {
-			this.data.translate.y = (this.data.windowHeight - scaleHeight) / 2;
-		}
-		item.element.style.transition = 'transform .3s ease-out';
+		this.handleBoundary(item);
+		item.element.style.transition = 'transform ' + this.options.duration + 'ms ease-out';
 		item.element.style.transform = 'translate3d(' + this.data.translate.x + 'px, ' + this.data.translate.y + 'px, 0) scale(' + this.data.scale + ')';
 	},
 	/**
@@ -798,25 +793,5 @@ const nonameGallery = {
 	setWindowSize: function () {
 		this.data.windowWidth = window.innerWidth;
 		this.data.windowHeight = window.innerHeight;
-	},
-	/**
-	 * 窗口大小变化旋转时触发
-	 */
-	handleResize: function () {
-		this.setWindowSize();
-		this.setPreviewList();
-		for (let i = 0; i < this.imgList.length; i++) {
-			const item = this.data.previewList[i];
-			item.element = this.imgList[i];
-			item.element.style.width = item.width + 'px';
-			item.element.style.height = item.height + 'px';
-			item.element.style.transform = 'translate3d(' + item.x + 'px, ' + item.y + 'px, 0) scale(1)';
-			item.element.style.transition = 'none';
-			item.element.style.cursor = 'zoom-in';
-		}
-		this.wrap.style.width = this.data.wrapWidth + 'px';
-		this.wrap.style.transform = 'translate3d(' + this.data.wrapTranslateX + 'px, 0, 0)';
-		this.wrap.style.transition = 'none';
-		this.data.clickCount = 0;
 	}
 }

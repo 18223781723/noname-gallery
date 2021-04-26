@@ -48,9 +48,7 @@
 		this.render();
 		this.setProperties();
 		this.open();
-		setTimeout(function () {
-			this.bindEventListener();
-		}.bind(this), this.options.duration);
+		this.bindEventListener();
 	}
 	NonameGallery.prototype.setWindowSize = function () {
 		this.windowWidth = window.innerWidth;
@@ -342,7 +340,6 @@
 		if (this.options.escToClose && e.keyCode === 27) {
 			this.close();
 		}
-		console.log(e.keyCode)
 	}
 	NonameGallery.prototype.handlePinch = function (e) {
 		// 如果dragTarget = 'wrap' 或者下滑关闭时，禁止双指缩放
@@ -374,8 +371,13 @@
 		}
 		this.lastCenter = center;
 		// 边界判断
-		var scaleWidth = this.scale * item.width;
-		var scaleHeight = this.scale * item.height;
+		this.handleBoundary(item);
+		item.element.style.transition = 'none';
+		item.element.style.transform = 'translate3d(' + this.translate.x + 'px, ' + this.translate.y + 'px, 0) scale(' + this.scale + ')';
+	}
+	NonameGallery.prototype.handleBoundary = function (item) {
+		const scaleWidth = this.scale * item.width;
+		const scaleHeight = this.scale * item.height;
 		if (scaleWidth > this.windowWidth) {
 			if (this.translate.x > 0) {
 				this.translate.x = 0
@@ -394,8 +396,6 @@
 		} else {
 			this.translate.y = (this.windowHeight - scaleHeight) / 2;
 		}
-		item.element.style.transition = 'none';
-		item.element.style.transform = 'translate3d(' + this.translate.x + 'px, ' + this.translate.y + 'px, 0) scale(' + this.scale + ')';
 	}
 	NonameGallery.prototype.getCenter = function (point, point2) {
 		var x = (point.x + point2.x) / 2;
@@ -553,26 +553,7 @@
 				item.element.style.transform = 'translate3d(' + x + 'px, ' + y + 'px , 0) scale(' + scale + ')';
 			}
 		} else {
-			var scaleWidth = item.width * this.scale;
-			var scaleHeight = item.height * this.scale;
-			if (scaleWidth > this.windowWidth) {
-				if (this.translate.x > 0) {
-					this.translate.x = 0;
-				} else if (this.translate.x < this.windowWidth - scaleWidth) {
-					this.translate.x = this.windowWidth - scaleWidth;
-				}
-			} else {
-				this.translate.x = (this.windowWidth - scaleWidth) / 2;
-			}
-			if (scaleHeight > this.windowHeight) {
-				if (this.translate.y > 0) {
-					this.translate.y = 0;
-				} else if (this.translate.y < this.windowHeight - scaleHeight) {
-					this.translate.y = this.windowHeight - scaleHeight;
-				}
-			} else {
-				this.translate.y = (this.windowHeight - scaleHeight) / 2;
-			}
+			this.handleBoundary(item);
 			item.element.style.transition = 'none';
 			item.element.style.transform = 'translate3d(' + Math.round(this.translate.x) + 'px, '
 				+ Math.round(this.translate.y) + 'px, 0) scale(' + this.scale + ')';
@@ -634,26 +615,7 @@
 
 		this.translate.x += this.step.x * 15;
 		this.translate.y += this.step.y * 15;
-
-		if (scaleWidth > this.windowWidth) {
-			if (this.translate.x > 0) {
-				this.translate.x = 0;
-			} else if (this.translate.x < this.windowWidth - scaleWidth) {
-				this.translate.x = this.windowWidth - scaleWidth;
-			}
-		} else {
-			this.translate.x = (this.windowWidth - scaleWidth) / 2;
-		}
-
-		if (scaleHeight > this.windowHeight) {
-			if (this.translate.y > 0) {
-				this.translate.y = 0;
-			} else if (this.translate.y < this.windowHeight - scaleHeight) {
-				this.translate.y = this.windowHeight - scaleHeight;
-			}
-		} else {
-			this.translate.y = (this.windowHeight - scaleHeight) / 2;
-		}
+		this.handleBoundary(item);
 		item.element.style.transition = 'transform ' + this.options.duration + 'ms ease-out';
 		item.element.style.transform = 'translate3d(' + this.translate.x + 'px, ' + this.translate.y + 'px, 0) scale(' + this.scale + ')';
 	}
