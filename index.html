@@ -70,12 +70,7 @@
         const options = {};
         const box = document.querySelector('.checkbox-box');
         const imgBox = document.querySelector('.img-box');
-        const imgList = document.querySelectorAll('.img')
-        const imgElementList = [];
-        for (const item of imgList) {
-            imgElementList.push(item);
-        }
-        options.list = imgElementList;
+        const imgList = document.querySelectorAll('.img');
 
         // checkbox change事件委托
         box.addEventListener('change', function (e) {
@@ -86,6 +81,7 @@
         imgBox.addEventListener('click', function (e) {
             if (e.target.tagName === 'IMG') {
                 // 类数组调用数组方法
+                options.list = [].slice.call(imgList,0);
                 options.index = [].indexOf.call(e.target.parentNode.children, e.target);
                 // options.index = imgElementList.indexOf(e.target);
                 // 初始化gallery
