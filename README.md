@@ -8,10 +8,6 @@ In a browser:
 
 	<script src="path/noname-gallery.js"></script>
 
-# usage
-	var gallery = new NonameGallerry(options);
-	gallery.init();
-
 # Example
 	<div id="imgBox">
         <img src="" alt="">
@@ -34,8 +30,22 @@ In a browser:
 					index: [].indexOf.call(e.target.parentNode.children, e.target)
 				}
 
-                const gallery = new NonameGallery(options);
+                var gallery = new NonameGallery(options);
                 gallery.init();
             }
         });
 	</script>
+
+# options
+| Params | Type | Defaults | Description |
+| :---- | :---- | :---- | :---- |
+| options | object |  | 配置项 |
+| options.list | array | HTMLImageElement[] | 图片列表，必填参数 |
+| options.index | number | 0 | 索引 |
+| options.showOpacity | boolean | true | 动画淡入淡出，当缩略图和预览尺寸不匹配时，建议开启 |
+| options.zoomToScreenCenter | boolean | false | 将放大区域移动至屏幕中心显示 |
+| options.verticalZoom | boolean | false | 垂直滑动时缩小图片 |
+| options.escToClose | boolean | false | 按下esc关闭画廊 |
+| options.minScale | number | 1.5 | 最小放大倍数 |
+| options.duration | number | 300 | 动画持续时间，单位ms |
+| options.animation | string | transition / raf | 动画实现方式，默认使用CSS3 transition，也可选用raf(window.requestAnimationFrame)，注意：raf在部分手机浏览器上会有卡顿 |

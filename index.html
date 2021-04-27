@@ -61,6 +61,7 @@
         <label><input type="checkbox" id="showOpacity" checked> showOpacity</label>
         <label><input type="checkbox" id="zoomToScreenCenter"> zoomToScreenCenter</label>
         <label><input type="checkbox" id="verticalZoom"> verticalZoom</label>
+        <label><input type="checkbox" id="escToClose" checked> escToClose</label>
     </div>
 
     <script src="src/js/noname-gallery.js"></script>
@@ -81,7 +82,7 @@
         imgBox.addEventListener('click', function (e) {
             if (e.target.tagName === 'IMG') {
                 // 类数组调用数组方法
-                options.list = [].slice.call(imgList,0);
+                options.list = [].slice.call(imgList, 0);
                 options.index = [].indexOf.call(e.target.parentNode.children, e.target);
                 // options.index = imgElementList.indexOf(e.target);
                 // 初始化gallery

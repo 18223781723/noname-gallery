@@ -43,6 +43,9 @@
 		animation: 'transition', // todo
 	}
 	NonameGallery.prototype.init = function () {
+		if (this.options.list.length === 0) {
+			throw new Error('options.list can not be empty array');
+		}
 		this.setWindowSize();
 		this.setPreviewList();
 		this.render();
