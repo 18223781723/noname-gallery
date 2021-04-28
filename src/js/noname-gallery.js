@@ -29,6 +29,9 @@ const nonameGallery = {
 		wrapWidth: 0, // wrap 宽度
 		wrapTranslateX: 0, // wrap x轴偏移量
 		scale: 1, // 当前图片缩放值
+		scaleWidth: 0, // 图片当前宽度
+		scaleHeight: 0, // 图片当前高度
+		opacity: 1, // 背景透明度
 		translate: { x: 0, y: 0 }, // 当前图片旋转中心（已设置为左上角）相对屏幕左上角偏移值
 		start: { x: 0, y: 0 }, // 第一根手指坐标
 		start2: { x: 0, y: 0 }, // 第二根手指坐标
@@ -54,9 +57,9 @@ const nonameGallery = {
 		zoomToScreenCenter: false, // 将放大区域移动到屏幕中心显示
 		verticalZoom: false, // 垂直滑动缩放图片
 		escToClose: true,
+		useTransition: !true, // 使用transition实现动画或requestAnimationFrame
 		minScale: 1.5, // 最小放大倍数
-		duration: 300,
-		animation: 'transition', // todo
+		duration: 300 // 动画持续时间
 	},
 	/**
 	 * 初始化
@@ -115,7 +118,7 @@ const nonameGallery = {
 		}
 		this.data.index = this.options.index;
 		const item = this.data.previewList[this.data.index];
-		this.setTranslateScale(item.x, item.y, 1);
+		this.setTranslateScale(item.x, item.y, 1, item.width, item.height);
 		// wrap
 		this.data.wrapWidth = this.data.previewList.length * this.data.windowWidth;
 		this.data.wrapTranslateX = this.data.index * this.data.windowWidth * -1;
@@ -124,25 +127,38 @@ const nonameGallery = {
 	 * 渲染
 	 */
 	render: function () {
-		let html = '<div class="noname-gallery-container">'
-			+ '<div class="noname-gallery-bg" style="transition: opacity ' + this.options.duration + 'ms;"></div>'
-			+ '<div class="noname-gallery-counter">' + (this.options.index + 1) + ' / ' + this.options.list.length + '</div>'
+		let html = '<div class="noname-gallery-container">';
+		if (this.options.useTransition) {
+			html += '<div class="noname-gallery-bg" style="opacity: 0; transition: opacity ' + this.options.duration + 'ms;"></div>';
+		} else {
+			html += '<div class="noname-gallery-bg" style="opacity: 0;"></div>';
+		}
+		html += '<div class="noname-gallery-counter">' + (this.options.index + 1) + ' / ' + this.options.list.length + '</div>'
 			+ '<ul class="noname-gallery-wrap" style="width: ' + this.data.wrapWidth
 			+ 'px; transform: translate3d(' + this.data.wrapTranslateX + 'px, 0, 0)">';
 
 		for (let i = 0; i < this.options.list.length; i++) {
 			// 预览图片列表项
 			const item = this.data.previewList[i];
-
-			let cssText = 'width: ' + item.width + 'px;';
-			cssText += 'height: ' + item.height + 'px;';
-			if (this.data.index === i) {
-				cssText += 'transform: translate3d(' + item.thumbnail.x + 'px, ' + item.thumbnail.y + 'px, 0) scale(' + item.thumbnail.scale + ');';
+			let cssText = '';
+			if (this.options.useTransition) {
+				cssText = 'width: ' + item.width + 'px;';
+				cssText += 'height: ' + item.height + 'px;';
+				if (this.data.index === i) {
+					cssText += 'transform: translate3d(' + item.thumbnail.x + 'px, ' + item.thumbnail.y + 'px, 0) scale(' + item.thumbnail.scale + ');';
+				} else {
+					cssText += 'transform: translate3d(' + item.x + 'px, ' + item.y + 'px, 0) scale(1);';
+				}
+				cssText += 'transition: transform ' + this.options.duration + 'ms, opacity ' + this.options.duration + 'ms;';
 			} else {
-				cssText += 'transform: translate3d(' + item.x + 'px, ' + item.y + 'px, 0) scale(1);';
+				if (this.data.index === i) {
+					cssText = 'width: ' + item.thumbnail.width + 'px; height: ' + item.thumbnail.height + 'px;';
+					cssText += 'transform: translate3d(' + item.thumbnail.x + 'px, ' + item.thumbnail.y + 'px, 0)';
+				} else {
+					cssText = 'width: ' + item.width + 'px; height: ' + item.height + 'px;';
+					cssText += 'transform: translate3d(' + item.x + 'px, ' + item.y + 'px, 0)';
+				}
 			}
-			cssText += 'transition: transform ' + this.options.duration + 'ms, opacity ' + this.options.duration + 'ms;';
-
 			html += '<li>'
 				+ '<img class="noname-gallery-img" src="' + this.options.list[i].src + '" alt="" style="' + cssText + '">'
 				+ '</li>';
@@ -170,32 +186,75 @@ const nonameGallery = {
 	open: function () {
 		// 当前预览图片
 		const item = this.data.previewList[this.data.index];
-		// 如果开启淡入淡出
-		if (this.options.showOpacity) {
-			item.element.style.opacity = '0';
-		}
-		// 强制重绘，否则合并计算样式，导致无法触发过渡效果，或使用setTimeout，个人猜测最短时长等于，1000 / 60 = 16.66666 ≈ 17
-		window.getComputedStyle(item.element).opacity;
+		// 如果使用过渡实现动画
+		if (this.options.useTransition) {
+			// 如果开启淡入淡出
+			if (this.options.showOpacity) {
+				item.element.style.opacity = '0';
+			}
+			// 强制重绘，否则合并计算样式，导致无法触发过渡效果，或使用setTimeout，个人猜测最短时长等于，1000 / 60 = 16.66666 ≈ 17
+			window.getComputedStyle(item.element).opacity;
 
-		this.bg.style.opacity = '1';
-		item.element.style.opacity = '1';
-		item.element.style.transform = 'translate3d(' + item.x + 'px,' + item.y + 'px, 0) scale(1)';
+			this.bg.style.opacity = '1';
+			item.element.style.opacity = '1';
+			item.element.style.transform = 'translate3d(' + item.x + 'px,' + item.y + 'px, 0) scale(1)';
+		} else {
+			const obj = {
+				bg: {
+					opacity: { from: 0, to: 1 }
+				},
+				img: {
+					opacity: { from: 1, to: 1 },
+					width: { from: item.thumbnail.width, to: item.width },
+					height: { from: item.thumbnail.height, to: item.height },
+					x: { from: item.thumbnail.x, to: item.x },
+					y: { from: item.thumbnail.y, to: item.y }
+				},
+				type: 'bgAndImg'
+			}
+			if (this.options.showOpacity) {
+				obj.img.opacity.from = 0;
+			}
+			this.raf(obj);
+		}
 	},
 	/**
 	 * 关闭
 	 */
 	close: function () {
 		const item = this.data.previewList[this.data.index];
-
-		item.element.style.transition = 'transform ' + this.options.duration + 'ms, opacity ' + this.options.duration + 'ms';
-		item.element.style.transform = 'translate3d(' + item.thumbnail.x + 'px, ' + item.thumbnail.y + 'px, 0) scale(' + item.thumbnail.scale + ')';
-		if (this.options.showOpacity) {
-			item.element.style.opacity = '0';
+		if (this.options.useTransition) {
+			if (this.options.showOpacity) {
+				item.element.style.opacity = '0';
+			}
+			item.element.style.transition = 'transform ' + this.options.duration + 'ms, opacity ' + this.options.duration + 'ms';
+			item.element.style.transform = 'translate3d(' + item.thumbnail.x + 'px, ' + item.thumbnail.y + 'px, 0) scale(' + item.thumbnail.scale + ')';
+			this.bg.style.opacity = '0';
+		} else {
+			const obj = {
+				bg: {
+					opacity: { from: this.data.opacity, to: 0 }
+				},
+				img: {
+					opacity: { from: 1, to: 1 },
+					width: { from: this.data.scaleWidth, to: item.thumbnail.width },
+					height: { from: this.data.scaleHeight, to: item.thumbnail.height },
+					x: { from: this.data.translate.x, to: item.thumbnail.x },
+					y: { from: this.data.translate.y, to: item.thumbnail.y },
+				},
+				type: 'bgAndImg'
+			}
+			if (this.options.showOpacity) {
+				obj.img.opacity.to = 0;
+			}
+			if (this.options.verticalZoom) {
+				obj.img.x.from = this.data.translate.x + (item.width - this.data.scaleWidth) / 2;
+				obj.img.y.from = this.data.translate.y + (item.height - this.data.scaleHeight) / 2;
+			}
+			this.raf(obj);
 		}
-		this.bg.style.opacity = '0';
 		// 移除事件
 		this.unbindEventListener();
-
 		setTimeout(() => {
 			// 移除dom
 			this.container.remove();
@@ -247,9 +306,11 @@ const nonameGallery = {
 	 * @param {number} y 纵坐标
 	 * @param {number} scale 缩放值
 	 */
-	setTranslateScale: function (x, y, scale) {
+	setTranslateScale: function (x, y, scale, w, h) {
 		this.data.translate = { x: x, y: y };
 		this.data.scale = scale;
+		this.data.scaleWidth = w;
+		this.data.scaleHeight = h;
 	},
 	/**
 	 * 处理mousedown
@@ -455,15 +516,43 @@ const nonameGallery = {
 			} else {
 				y = Math.round((this.data.windowHeight - item.maxHeight) / 2);
 			}
-			this.setTranslateScale(x, y, item.maxScale);
-			item.element.style.transition = 'transform ' + this.options.duration + 'ms, opacity ' + this.options.duration + 'ms';
-			item.element.style.transform = 'translate3d(' + x + 'px,' + y + 'px, 0) scale(' + item.maxScale + ')';
+			if (this.options.useTransition) {
+				item.element.style.transition = 'transform ' + this.options.duration + 'ms, opacity ' + this.options.duration + 'ms';
+				item.element.style.transform = 'translate3d(' + x + 'px,' + y + 'px, 0) scale(' + item.maxScale + ')';
+			} else {
+				const obj = {
+					img: {
+						opacity: { from: 1, to: 1 },
+						width: { from: item.width, to: item.maxWidth },
+						height: { from: item.height, to: item.maxHeight },
+						x: { from: item.x, to: x },
+						y: { from: item.y, to: y }
+					},
+					type: 'img'
+				}
+				this.raf(obj);
+			}
 			item.element.style.cursor = 'zoom-out';
+			this.setTranslateScale(x, y, item.maxScale, item.maxWidth, item.maxHeight);
 		} else { // 复原
-			this.setTranslateScale(item.x, item.y, 1);
-			item.element.style.transition = 'transform ' + this.options.duration + 'ms, opacity ' + this.options.duration + 'ms';
-			item.element.style.transform = 'translate3d(' + item.x + 'px,' + item.y + 'px, 0) scale(1)';
+			if (this.options.useTransition) {
+				item.element.style.transition = 'transform ' + this.options.duration + 'ms, opacity ' + this.options.duration + 'ms';
+				item.element.style.transform = 'translate3d(' + item.x + 'px,' + item.y + 'px, 0) scale(1)';
+			} else {
+				const obj = {
+					img: {
+						opacity: { from: 1, to: 1 },
+						width: { from: this.data.scaleWidth, to: item.width },
+						height: { from: this.data.scaleHeight, to: item.height },
+						x: { from: this.data.translate.x, to: item.x },
+						y: { from: this.data.translate.y, to: item.y }
+					},
+					type: 'img'
+				}
+				this.raf(obj);
+			}
 			item.element.style.cursor = 'zoom-in';
+			this.setTranslateScale(item.x, item.y, 1, item.width, item.height);
 		}
 	},
 	/**
@@ -505,7 +594,10 @@ const nonameGallery = {
 		let start = this.getDistance(this.data.start, this.data.start2);
 		const distanceRatio = end / start;
 		var ratio = distanceRatio / this.data.lastDistanceRatio;
+
 		this.data.scale = this.data.scale * ratio;
+		this.data.scaleWidth *= ratio;
+		this.data.scaleHeight *= ratio;
 		if (this.data.scale > item.maxScale) {
 			this.data.scale = item.maxScale;
 			ratio = 1;
@@ -513,8 +605,19 @@ const nonameGallery = {
 			this.data.scale = 0.7;
 			ratio = 1;
 		}
-		this.data.lastDistanceRatio = distanceRatio;
 
+		if (this.data.scaleWidth > item.maxWidth) {
+			this.data.scaleWidth = item.maxWidth;
+		} else if (this.data.scaleWidth < item.width * 0.7) {
+			this.data.scaleWidth = item.width * 0.7;
+		}
+		if (this.data.scaleHeight > item.maxHeight) {
+			this.data.scaleHeight = item.maxHeight;
+		} else if (this.data.scaleHeight < item.height * 0.7) {
+			this.data.scaleHeight = item.height * 0.7;
+		}
+
+		this.data.lastDistanceRatio = distanceRatio;
 		const center = this.getCenter(touche, touche2);
 		this.data.translate.x = this.data.translate.x - (ratio - 1) * (center.x - this.data.translate.x);
 		this.data.translate.y = this.data.translate.y - (ratio - 1) * (center.y - this.data.translate.y);
@@ -525,8 +628,14 @@ const nonameGallery = {
 		this.data.lastCenter = center;
 		// 处理边界
 		this.handleBoundary(item);
-		item.element.style.transition = 'none';
-		item.element.style.transform = 'translate3d(' + this.data.translate.x + 'px, ' + this.data.translate.y + 'px, 0) scale(' + this.data.scale + ')';
+		if (this.options.useTransition) {
+			item.element.style.transition = 'none';
+			item.element.style.transform = 'translate3d(' + this.data.translate.x + 'px, ' + this.data.translate.y + 'px, 0) scale(' + this.data.scale + ')';
+		} else {
+			item.element.style.width = this.data.scaleWidth + 'px';
+			item.element.style.height = this.data.scaleHeight + 'px';
+			item.element.style.transform = 'translate3d(' + this.data.translate.x + 'px, ' + this.data.translate.y + 'px, 0)';
+		}
 	},
 	/**
 	 * 处理边界
@@ -672,30 +781,46 @@ const nonameGallery = {
 			if (this.data.direction === 'v') {
 				const diffX = this.data.translate.x - item.x;
 				const diffY = this.data.translate.y - item.y;
-				let opacity = 1 - (Math.abs(diffY) / (this.data.windowHeight / 1.2));
-				if (opacity < 0) {
-					opacity = 0;
+				this.data.opacity = 1 - (Math.abs(diffY) / (this.data.windowHeight / 1.2));
+				if (this.data.opacity < 0) {
+					this.data.opacity = 0;
 				}
 				let x, y, scale;
 				if (this.options.verticalZoom) {
-					scale = opacity;
-					x = item.x + diffX + (item.width - item.width * scale) / 2;
-					y = item.y + diffY + (item.height - item.height * scale) / 2;
+					if (this.options.useTransition) {
+						scale = this.data.opacity;
+						x = item.x + diffX + (item.width - item.width * scale) / 2;
+						y = item.y + diffY + (item.height - item.height * scale) / 2;
+					} else {
+						this.data.scaleWidth = item.width * this.data.opacity;
+						this.data.scaleHeight = item.height * this.data.opacity;
+						x = item.x + diffX + (item.width - this.data.scaleWidth) / 2;
+						y = item.y + diffY + (item.height - this.data.scaleHeight) / 2;
+					}
 				} else {
 					x = item.x;
 					y = item.y + diffY;
 					scale = 1;
 				}
-				this.bg.style.transition = 'none';
-				this.bg.style.opacity = opacity;
-				item.element.style.transition = 'none';
-				item.element.style.transform = 'translate3d(' + x + 'px, ' + y + 'px , 0) scale(' + scale + ')';
+				this.bg.style.opacity = this.data.opacity;
+				if (this.options.useTransition) {
+					this.bg.style.transition = 'none';
+					item.element.style.transition = 'none';
+					item.element.style.transform = 'translate3d(' + x + 'px, ' + y + 'px , 0) scale(' + scale + ')';
+				} else {
+					item.element.style.width = this.data.scaleWidth + 'px';
+					item.element.style.height = this.data.scaleHeight + 'px';
+					item.element.style.transform = 'translate3d(' + x + 'px, ' + y + 'px , 0)';
+				}
 			}
 		} else {
 			this.handleBoundary(item);
-			item.element.style.transition = 'none';
-			item.element.style.transform = 'translate3d(' + Math.round(this.data.translate.x) + 'px, '
-				+ Math.round(this.data.translate.y) + 'px, 0) scale(' + this.data.scale + ')';
+			if (this.options.useTransition) {
+				item.element.style.transition = 'none';
+				item.element.style.transform = 'translate3d(' + this.data.translate.x + 'px, ' + this.data.translate.y + 'px, 0) scale(' + this.data.scale + ')';
+			} else {
+				item.element.style.transform = 'translate3d(' + this.data.translate.x + 'px, ' + this.data.translate.y + 'px, 0)';
+			}
 		}
 	},
 	/**
@@ -720,17 +845,42 @@ const nonameGallery = {
 			// 切换时，如果之前图片放大过，则恢复
 			if (lastIndex !== this.data.index) {
 				const item = this.data.previewList[this.data.index];
-				this.setTranslateScale(item.x, item.y, 1);
 				if (lastScale !== 1) {
-					lastItem.element.style.transition = 'transform ' + this.options.duration + 'ms, opacity ' + this.options.duration + 'ms';
-					lastItem.element.style.transform = 'translate3d(' + lastItem.x + 'px, ' + lastItem.y + 'px, 0) scale(1)';
+					if (this.options.useTransition) {
+						lastItem.element.style.transition = 'transform ' + this.options.duration + 'ms, opacity ' + this.options.duration + 'ms';
+						lastItem.element.style.transform = 'translate3d(' + lastItem.x + 'px, ' + lastItem.y + 'px, 0) scale(1)';
+					} else {
+						const obj = {
+							img: {
+								opacity: { from: 1, to: 1 },
+								width: { from: this.data.scaleWidth, to: lastItem.width },
+								height: { from: this.data.scaleHeight, to: lastItem.height },
+								x: { from: this.data.translate.x, to: lastItem.x },
+								y: { from: this.data.translate.y, to: lastItem.y }
+							},
+							type: 'img'
+						}
+						this.raf(obj);
+					}
 					lastItem.element.style.cursor = 'zoom-in';
 				}
+				this.setTranslateScale(item.x, item.y, 1, item.width, item.height);
 			}
 		}
-		this.data.wrapTranslateX = this.data.windowWidth * this.data.index * -1;
-		this.wrap.style.transition = 'transform ' + this.options.duration + 'ms';
-		this.wrap.style.transform = 'translate3d(' + this.data.wrapTranslateX + 'px, 0, 0)';
+		let x = this.data.windowWidth * this.data.index * -1;
+		if (this.options.useTransition) {
+			this.wrap.style.transition = 'transform ' + this.options.duration + 'ms';
+			this.wrap.style.transform = 'translate3d(' + x + 'px, 0, 0)';
+		} else {
+			const obj = {
+				wrap: {
+					x: { from: this.data.wrapTranslateX, to: x }
+				},
+				type: 'wrap'
+			}
+			this.raf(obj);
+		}
+		this.data.wrapTranslateX = x;
 		this.counter.innerHTML = (this.data.index + 1) + ' / ' + this.data.previewList.length;
 	},
 	/**
@@ -744,10 +894,35 @@ const nonameGallery = {
 			this.close();
 		}
 		if (this.data.scale < 1 || (this.data.scale === 1 && this.data.direction === 'v' && Math.abs(diffY) < MIN_CLOSE_DISTANCE)) {
-			item.element.style.transition = 'transform ' + this.options.duration + 'ms, opacity ' + this.options.duration + 'ms';
-			item.element.style.transform = 'translate3d(' + item.x + 'px, ' + item.y + 'px, 0) scale(1)';
-			this.bg.style.opacity = '1';
-			this.setTranslateScale(item.x, item.y, 1);
+			if (this.options.useTransition) {
+				item.element.style.transition = 'transform ' + this.options.duration + 'ms, opacity ' + this.options.duration + 'ms';
+				item.element.style.transform = 'translate3d(' + item.x + 'px, ' + item.y + 'px, 0) scale(1)';
+				this.bg.style.opacity = '1';
+			} else {
+				const obj = {
+					bg: {
+						opacity: { from: this.data.opacity, to: 1 }
+					},
+					img: {
+						opacity: { from: 1, to: 1 },
+						width: { from: this.data.scaleWidth, to: item.width },
+						height: { from: this.data.scaleHeight, to: item.height },
+						x: { from: item.x, to: item.x },
+						y: { from: this.data.translate.y, to: item.y }
+					},
+					type: 'bgAndImg'
+				}
+				if (this.options.verticalZoom) {
+					obj.img.x.from = item.x + (item.width - this.data.scaleWidth) / 2;
+					obj.img.y.from = this.data.translate.y + (item.height - this.data.scaleHeight) / 2;
+				}
+				if (this.data.scale < 1) {
+					obj.img.x.from = this.data.translate.x;
+					obj.img.y.from = this.data.translate.y;
+				}
+				this.raf(obj);
+			}
+			this.setTranslateScale(item.x, item.y, 1, item.width, item.height);
 		}
 	},
 	/**
@@ -760,11 +935,27 @@ const nonameGallery = {
 		if (scaleWidth <= this.data.windowWidth && scaleHeight <= this.data.windowHeight) {
 			return;
 		}
+		const x = this.data.translate.x;
+		const y = this.data.translate.y;
 		this.data.translate.x += this.data.step.x * 15;
 		this.data.translate.y += this.data.step.y * 15;
 		this.handleBoundary(item);
-		item.element.style.transition = 'transform ' + this.options.duration + 'ms ease-out';
-		item.element.style.transform = 'translate3d(' + this.data.translate.x + 'px, ' + this.data.translate.y + 'px, 0) scale(' + this.data.scale + ')';
+		if (this.options.useTransition) {
+			item.element.style.transition = 'transform ' + this.options.duration + 'ms ease-out';
+			item.element.style.transform = 'translate3d(' + this.data.translate.x + 'px, ' + this.data.translate.y + 'px, 0) scale(' + this.data.scale + ')';
+		} else {
+			const obj = {
+				img: {
+					opacity: { from: 1, to: 1 },
+					width: { from: this.data.scaleWidth, to: this.data.scaleWidth },
+					height: { from: this.data.scaleHeight, to: this.data.scaleHeight },
+					x: { from: x, to: this.data.translate.x },
+					y: { from: y, to: this.data.translate.y }
+				},
+				type: 'img'
+			}
+			this.raf(obj);
+		}
 	},
 	/**
 	 * 保留n位小数
@@ -797,5 +988,97 @@ const nonameGallery = {
 	setWindowSize: function () {
 		this.data.windowWidth = window.innerWidth;
 		this.data.windowHeight = window.innerHeight;
+	},
+	/**
+	 * 动画函数 先慢后快
+	 * @param {*} t 当前时间
+	 * @param {*} b 初始值
+	 * @param {*} c 变化量
+	 * @param {*} d 持续时间
+	 * @returns 
+	 */
+	easeIn: function (t, b, c, d) {
+		return c * (t /= d) * t + b;
+	},
+	/**
+	 * 动画函数 先快后慢
+	 * @param {*} from 起始位置
+	 * @param {*} to 结束位置
+	 * @param {*} time 动画当前时间
+	 * @param {*} duration 动画持续时间
+	 * @returns
+	 */
+	easeOut: function (from, to, time, duration) {
+		let change = to - from;
+		return -change * (time /= duration) * (time - 2) + from;
+	},
+	/**
+	 * raf 动画
+	 * @param {object} obj 参数
+	 */
+	raf: function (obj) {
+		let self = this;
+		let start;
+		let count = 0;
+		function step(timestamp) {
+			if (start === undefined) {
+				start = timestamp;
+			}
+			let time = timestamp - start;
+			if (time > self.options.duration) {
+				time = self.options.duration;
+				count++;
+			}
+			if (count < 2) {
+				if (obj.type === 'bgAndImg') {
+					self.bgAnimate(obj, time, self.options.duration);
+					self.imgAnimate(obj, time, self.options.duration);
+				} else if (obj.type === 'wrap') {
+					self.wrapAnimate(obj, time, self.options.duration);
+				} else if (obj.type === 'img') {
+					self.imgAnimate(obj, time, self.options.duration);
+				}
+				window.requestAnimationFrame(step);
+			}
+		}
+		window.requestAnimationFrame(step);
+	},
+	/**
+	 * bg opacity动画
+	 * @param {object} obj 
+	 * @param {number} time 动画当前时间
+	 * @param {number} duration 动画持续时间
+	 */
+	bgAnimate: function (obj, time, duration) {
+		let opacity = this.easeOut(obj.bg.opacity.from, obj.bg.opacity.to, time, duration);
+		this.bg.style.opacity = opacity;
+	},
+	/**
+	 * wrap滑动动画
+	 * @param {object} obj
+	 * @param {number} time 动画当前时间
+	 * @param {number} duration 动画持续时间
+	 */
+	wrapAnimate: function (obj, time, duration) {
+		let x = this.easeOut(obj.wrap.x.from, obj.wrap.x.to, time, duration);
+		this.wrap.style.transform = 'translate3d(' + x + 'px, 0, 0)';
+	},
+	/**
+	 * img zoom动画
+	 * @param {object} obj
+	 * @param {number} time 动画当前时间
+	 * @param {number} duration 动画持续时间
+	 */
+	imgAnimate: function (obj, time, duration) {
+		let opacity = this.easeOut(obj.img.opacity.from, obj.img.opacity.to, time, duration);
+		let width = this.easeOut(obj.img.width.from, obj.img.width.to, time, duration);
+		let height = this.easeOut(obj.img.height.from, obj.img.height.to, time, duration);
+		let x = this.easeOut(obj.img.x.from, obj.img.x.to, time, duration);
+		let y = this.easeOut(obj.img.y.from, obj.img.y.to, time, duration);
+		const item = this.data.previewList[this.data.index];
+		item.element.style.opacity = opacity;
+		item.element.style.width = width + 'px';
+		item.element.style.height = height + 'px';
+		item.element.style.transform = 'translate3d(' + x + 'px, ' + y + 'px, 0)';
 	}
 }

@@ -48,4 +48,4 @@ In a browser:
 | options.escToClose | boolean | false | 按下esc关闭画廊 |
 | options.minScale | number | 1.5 | 最小放大倍数 |
 | options.duration | number | 300 | 动画持续时间，单位ms |
-| options.animation | string | transition / raf | 动画实现方式，默认使用CSS3 transition，也可选用raf(window.requestAnimationFrame)，注意：raf在部分手机浏览器上会有卡顿 |
+| options.useTransition | boolean | true | 动画实现方式，默认使用CSS3 transition，也可选用raf(window.requestAnimationFrame)，注意：raf在部分手机浏览器上会有卡顿 |
