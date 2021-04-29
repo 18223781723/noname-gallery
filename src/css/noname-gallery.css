@@ -49,6 +49,5 @@
 .noname-gallery-img {
 	display: block;
 	transform-origin: left top;
-	cursor: zoom-in;
 	object-fit: cover;
 }

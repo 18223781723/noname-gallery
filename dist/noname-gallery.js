@@ -37,7 +37,7 @@
 		showOpacity: true,
 		zoomToScreenCenter: false,
 		verticalZoom: false,
-		escToClose: true,
+		openKeyboard: true,
 		minScale: 1.5,
 		duration: 300,
 		animation: 'transition', // todo
@@ -340,7 +340,7 @@
 		this.clickCount = 0;
 	}
 	NonameGallery.prototype.handleKeydown = function (e) {
-		if (this.options.escToClose && e.keyCode === 27) {
+		if (this.options.openKeyboard && e.keyCode === 27) {
 			this.close();
 		}
 	}
