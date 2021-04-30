@@ -13,7 +13,7 @@ const nonameGallery = {
 		 * element HTMLImageElement
 		 * x 预览图片左上角相对于视口的横坐标
 		 * y 预览图片左上角相对于视口的纵坐标
-		 * maxScale 预览图片最大比例
+		 * maxScale 预览图片最大缩放比例
 		 * width 预览图片显示宽度
 		 * height 预览图片显示高度
 		 * maxWidth 预览图片最大宽度
@@ -33,16 +33,19 @@ const nonameGallery = {
 			y: 0, // 当前图片旋转中心（已设置为左上角）相对屏幕左上角偏移值
 			width: 0, // 图片当前高度
 			height: 0, // 图片当前宽度
-			scale: 0 // 当前图片缩放值
+			scale: 0, // 当前图片缩放值
+			verticalToClose: true // 垂直滑动关闭
 		},
 		bgOpacity: 1, // 背景透明度
 		start: { x: 0, y: 0 }, // 第一根手指坐标
 		start2: { x: 0, y: 0 }, // 第二根手指坐标
-		step: { x: 0, y: 0 }, // 移动差值
-		stepSum: { x: 0, y: 0 }, // 移动差值总和大于10判断滑动方向
+		step: { x: 0, y: 0 }, // 相对于上一次移动差值
+		// stepSum: { x: 0, y: 0 }, // 移动差值总和大于10判断滑动方向
+		distance: { x: 0, y: 0 }, // 相对于第一次点击位置移动距离
+		lastDistance: { x: 0, y: 0 }, // 双指滑动时记录上一次移动距离
 		lastMove: { x: 0, y: 0 }, // 上一次移动
-		lastCenter: null, // 上一次中心位置
-		lastDistanceRatio: 1, // 上一次距离比例
+		lastCenter: null, // 上一次双指中心位置
+		lastDistanceRatio: 1, // 上一次双指距离比例
 		clickCount: 0, // 点击次数 1 = 单击 大于1 = 双击
 		direction: '', // 方向 v: vertical h: horizontal
 		dragTarget: '', // wrap，img
@@ -82,7 +85,7 @@ const nonameGallery = {
 
 		this.data.index = this.options.index;
 		const item = this.data.previewList[this.data.index];
-		this.setCurrentImg(item.x, item.y, item.width, item.height, 1);
+		this.setCurrentImg(item.x, item.y, item.width, item.height, 1, true);
 
 		this.setWrap();
 
@@ -100,12 +103,12 @@ const nonameGallery = {
 	setPreviewList: function () {
 		// 渲染之前先保存缩略图的getBoundingClientRect信息
 		this.data.previewList = [];
-		for (let i = 0; i < this.options.list.length; i++) {
+		for (let i = 0, length = this.options.list.length; i < length; i++) {
 			const element = this.options.list[i];
 			const rect = element.getBoundingClientRect();
 			// 计算预览图片显示宽高
 			const result = this.getImgSize(element.naturalWidth, element.naturalHeight);
-			let maxScale = this.decimal(element.naturalWidth / result.width, 3);
+			let maxScale = this.decimal(element.naturalWidth / result.width, 5);
 			if (maxScale < this.options.minScale) {
 				maxScale = this.options.minScale;
 			}
@@ -123,9 +126,12 @@ const nonameGallery = {
 			item.thumbnail.y = Math.round(rect.top);
 			item.thumbnail.width = Math.round(rect.width);
 			item.thumbnail.height = Math.round(rect.height);
-			item.thumbnail.scale = this.decimal(rect.width / result.width, 3);
+			item.thumbnail.scale = this.decimal(rect.width / result.width, 5);
 		}
 	},
+	/**
+	 * 设置wrap宽度和偏移量
+	 */
 	setWrap: function () {
 		this.data.wrapWidth = this.data.previewList.length * this.data.windowWidth;
 		this.data.wrapTranslateX = this.data.index * this.data.windowWidth * -1;
@@ -143,7 +149,7 @@ const nonameGallery = {
 			+ '<div class="noname-gallery-counter">' + (this.options.index + 1) + ' / ' + this.options.list.length + '</div>'
 			+ '<ul class="noname-gallery-wrap" style="width: ' + this.data.wrapWidth
 			+ 'px; transform: translate3d(' + this.data.wrapTranslateX + 'px, 0, 0)">';
-		for (let i = 0; i < this.options.list.length; i++) {
+		for (let i = 0, length = this.options.list.length; i < length; i++) {
 			// 预览图片列表项
 			const item = this.data.previewList[i];
 			cssText = '';
@@ -187,7 +193,7 @@ const nonameGallery = {
 		this.bg = document.querySelector('.noname-gallery-bg');
 		this.counter = document.querySelector('.noname-gallery-counter');
 		this.imgList = document.querySelectorAll('.noname-gallery-img');
-		for (let i = 0; i < this.imgList.length; i++) {
+		for (let i = 0, length = this.imgList.length; i < length; i++) {
 			this.data.previewList[i].element = this.imgList[i];
 		}
 	},
@@ -255,16 +261,12 @@ const nonameGallery = {
 			if (this.options.showOpacity) {
 				obj.img.opacity = { from: 1, to: 0 };
 			}
-			if (this.options.verticalZoom) {
-				obj.img.x.from = this.data.currentImg.x + (item.width - this.data.currentImg.width) / 2;
-				obj.img.y.from = this.data.currentImg.y + (item.height - this.data.currentImg.height) / 2;
-			}
 			this.raf(obj);
 		}
 		// 移除事件
 		this.unbindEventListener();
+		// 移除dom
 		setTimeout(() => {
-			// 移除dom
 			this.container.remove();
 		}, this.options.duration);
 	},
@@ -316,13 +318,14 @@ const nonameGallery = {
 	 * @param {number} height 高度
 	 * @param {number} scale 缩放值
 	 */
-	setCurrentImg: function (x, y, width, height, scale) {
+	setCurrentImg: function (x, y, width, height, scale, flag) {
 		this.data.currentImg = {
 			x: x,
 			y: y,
 			width: width,
 			height: height,
-			scale: scale
+			scale: scale,
+			verticalToClose: flag
 		};
 	},
 	/**
@@ -330,14 +333,16 @@ const nonameGallery = {
 	 * @param {MouseEvent} e
 	 */
 	handleMousedown: function (e) {
-		console.log(e.type);
+		// console.log(e.type);
 		// e.button 0 = 左键 1 = 滚轮 2 = 右键
 		if (e.button === 0) {
+			this.data.isMousedown = true;
 			this.data.start = { x: e.clientX, y: e.clientY };
 			this.data.lastMove = { x: e.clientX, y: e.clientY };
-			this.data.stepSum = { x: 0, y: 0 };
+			this.data.distance = { x: 0, y: 0 };
+			this.data.lastDistance = { x: 0, y: 0 };
+			// this.data.stepSum = { x: 0, y: 0 };
 			this.data.clickCount = 1;
-			this.data.isMousedown = true;
 			this.data.direction = '';
 			this.data.dragTarget = '';
 		}
@@ -347,7 +352,7 @@ const nonameGallery = {
 	 * @param {MouseEvent} e
 	 */
 	handleMousemove: function (e) {
-		console.log(e.type);
+		// console.log(e.type);
 		e.preventDefault();
 		if (this.data.isMousedown) {
 			this.handleMove(e);
@@ -358,10 +363,11 @@ const nonameGallery = {
 	 * @param {MouseEvent} e
 	 */
 	handleMouseup: function (e) {
-		console.log(e.type);
+		// console.log(e.type);
 		if (e.button === 0) {
 			this.data.isMousedown = false;
 			this.handleMoveEnd();
+
 			if (Date.now() - this.data.lastMoveTime < 100) {
 				this.handleInertial();
 			} else if (this.data.clickCount !== 0) {
@@ -378,11 +384,13 @@ const nonameGallery = {
 	 * @param {TouchEvent} e
 	 */
 	handleTouchstart: function (e) {
-		console.log(e.type);
+		// console.log(e.type);
 		this.data.start = { x: e.touches[0].clientX, y: e.touches[0].clientY };
 		this.data.lastMove = { x: e.touches[0].clientX, y: e.touches[0].clientY };
 		if (e.touches.length === 1) {
-			this.data.stepSum = { x: 0, y: 0 };
+			this.data.distance = { x: 0, y: 0 };
+			this.data.lastDistance = { x: 0, y: 0 };
+			// this.data.stepSum = { x: 0, y: 0 };
 			this.data.direction = '';
 			this.data.dragTarget = '';
 			this.data.startTime = Date.now();
@@ -400,7 +408,7 @@ const nonameGallery = {
 	 * @param {TouchEvent} e
 	 */
 	handleTouchmove: function (e) {
-		console.log(e.type);
+		// console.log(e.type);
 		e.preventDefault();
 		// 一根手指
 		if (e.touches.length === 1) {
@@ -414,7 +422,7 @@ const nonameGallery = {
 	 * @param {TouchEvent} e
 	 */
 	handleTouchend: function (e) {
-		console.log(e.type);
+		// console.log(e.type);
 		e.preventDefault();
 		if (e.touches.length === 0) {
 			// 处理移动结束
@@ -436,14 +444,16 @@ const nonameGallery = {
 				this.data.clickCount = 0;
 			}
 		} else if (e.touches.length === 1) {
+			this.data.start = { x: e.touches[0].clientX, y: e.touches[0].clientY };
 			this.data.lastMove = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+			this.data.lastDistance = { x: this.data.distance.x, y: this.data.distance.y };
 		}
 	},
 	/**
 	 * 处理touchcancel
 	 */
 	handleTouchcancel: function () {
-		console.log(e.type);
+		// console.log(e.type);
 		// 微信浏览器长按呼出菜单
 		this.data.clickCount = 0;
 	},
@@ -454,9 +464,9 @@ const nonameGallery = {
 		this.setWindowSize();
 		this.setPreviewList();
 		const item = this.data.previewList[this.data.index];
-		this.setCurrentImg(item.x, item.y, item.width, item.height, 1);
+		this.setCurrentImg(item.x, item.y, item.width, item.height, 1, true);
 		this.setWrap();
-		for (let i = 0; i < this.imgList.length; i++) {
+		for (let i = 0, length = this.imgList.length; i < length; i++) {
 			const item = this.data.previewList[i];
 			item.element = this.imgList[i];
 			item.element.style.width = item.width + 'px';
@@ -483,7 +493,7 @@ const nonameGallery = {
 			} else if ([39, 40].includes(e.keyCode)) {
 				this.switch('next');
 			}
-			console.log(e.keyCode)
+			// console.log(e.keyCode)
 		}
 	},
 	/**
@@ -494,8 +504,8 @@ const nonameGallery = {
 	 */
 	handleZoom: function (point) {
 		const item = this.data.previewList[this.data.index];
-		// 如果放大过，则恢复
-		if (this.data.currentImg.width > item.width) {
+		// 恢复
+		if (this.data.currentImg.width > item.width || this.data.currentImg.height > item.height) {
 			if (this.options.useTransition) {
 				item.element.style.transition = 'transform ' + this.options.duration + 'ms, opacity ' + this.options.duration + 'ms';
 				item.element.style.transform = 'translate3d(' + item.x + 'px,' + item.y + 'px, 0) scale(1)';
@@ -513,7 +523,7 @@ const nonameGallery = {
 				this.raf(obj);
 			}
 			item.element.style.cursor = 'zoom-in';
-			this.setCurrentImg(item.x, item.y, item.width, item.height, 1);
+			this.setCurrentImg(item.x, item.y, item.width, item.height, 1, true);
 		} else { // 放大
 			let ix, iy, x, y;
 			const halfWindowWidth = Math.round(this.data.windowWidth / 2);
@@ -537,6 +547,7 @@ const nonameGallery = {
 			} else {
 				x = Math.round((this.data.windowWidth - item.maxWidth) / 2);
 			}
+			x = Math.round(x);
 			// 如果预览图片最大高度 > 屏幕高度
 			if (item.maxHeight > this.data.windowHeight) {
 				if (this.options.zoomToScreenCenter) {
@@ -552,6 +563,7 @@ const nonameGallery = {
 			} else {
 				y = Math.round((this.data.windowHeight - item.maxHeight) / 2);
 			}
+			y = Math.round(y);
 			if (this.options.useTransition) {
 				item.element.style.transition = 'transform ' + this.options.duration + 'ms, opacity ' + this.options.duration + 'ms';
 				item.element.style.transform = 'translate3d(' + x + 'px,' + y + 'px, 0) scale(' + item.maxScale + ')';
@@ -569,7 +581,7 @@ const nonameGallery = {
 				this.raf(obj);
 			}
 			item.element.style.cursor = 'zoom-out';
-			this.setCurrentImg(x, y, item.maxWidth, item.maxHeight, item.maxScale);
+			this.setCurrentImg(x, y, item.maxWidth, item.maxHeight, item.maxScale, false);
 		}
 	},
 	/**
@@ -578,13 +590,14 @@ const nonameGallery = {
 	handleMove: function (e) {
 		const x = e.type === 'touchmove' ? e.touches[0].clientX : e.clientX;
 		const y = e.type === 'touchmove' ? e.touches[0].clientY : e.clientY;
-		this.data.step.x = x - this.data.lastMove.x;
-		this.data.step.y = y - this.data.lastMove.y;
+		this.data.step = { x: x - this.data.lastMove.x, y: y - this.data.lastMove.y };
+		this.data.distance.x = x - this.data.start.x + this.data.lastDistance.x;
+		this.data.distance.y = y - this.data.start.y + this.data.lastDistance.y;
 		this.data.lastMove = { x: x, y: y };
 		this.data.lastMoveTime = Date.now();
-		this.data.stepSum.x += this.data.step.x;
-		this.data.stepSum.y += this.data.step.y;
-		if (Math.abs(this.data.stepSum.x) > 10 || Math.abs(this.data.stepSum.y) > 10) {
+		// this.data.stepSum.x += this.data.step.x;
+		// this.data.stepSum.y += this.data.step.y;
+		if (Math.abs(this.data.distance.x) > 10 || Math.abs(this.data.distance.y) > 10) {
 			this.data.clickCount = 0;
 			// 获取移动方向
 			this.getDirection();
@@ -727,12 +740,12 @@ const nonameGallery = {
 	 */
 	getDirection: function () {
 		if (this.data.direction === '') {
-			if (Math.abs(this.data.stepSum.x) > Math.abs(this.data.stepSum.y)) {
+			if (Math.abs(this.data.distance.x) > Math.abs(this.data.distance.y)) {
 				this.data.direction = 'h';
 			} else {
 				this.data.direction = 'v';
 			}
-			console.log(this.data.direction);
+			// console.log(this.data.direction);
 		}
 	},
 	/**
@@ -740,21 +753,27 @@ const nonameGallery = {
 	 */
 	getDragTarget: function () {
 		if (this.data.dragTarget === '') {
-			if (this.data.direction === 'h' &&
-				this.data.currentImg.width >= this.data.previewList[this.data.index].width &&
-				(
-					this.data.currentImg.width <= this.data.windowWidth ||
-					(
-						(this.data.step.x > 0 && this.data.currentImg.x === 0) ||
-						(this.data.step.x < 0 && this.data.currentImg.x === this.data.windowWidth - this.data.currentImg.width)
-					)
-				)
-			) {
+			let flag = false, flag2 = false;
+			// 图片宽度大于屏幕宽度且滑动到边界
+			if (this.data.currentImg.width > this.data.windowWidth) {
+				if (
+					(this.data.step.x > 0 && this.data.currentImg.x === 0) ||
+					(this.data.step.x < 0 && this.data.currentImg.x === this.data.windowWidth - this.data.currentImg.width)
+				) {
+					flag = true;
+				}
+			} else {
+				// 图片宽度小于屏幕宽度，但大未被双指缩小
+				if (this.data.currentImg.width >= this.data.previewList[this.data.index].width) {
+					flag2 = true;
+				}
+			}
+			if (this.data.direction === 'h' && (flag || flag2)) {
 				this.data.dragTarget = 'wrap';
 			} else {
 				this.data.dragTarget = 'img';
 			}
-			console.log(this.data.dragTarget);
+			// console.log(this.data.dragTarget);
 		}
 	},
 	/**
@@ -795,47 +814,45 @@ const nonameGallery = {
 	 * 处理img移动
 	 */
 	handleImgMove: function () {
-		this.data.currentImg.x += this.data.step.x;
-		this.data.currentImg.y += this.data.step.y;
 		const item = this.data.previewList[this.data.index];
-		if (this.data.currentImg.width <= this.data.windowWidth && this.data.currentImg.height <= this.data.windowHeight) {
-			if (this.data.direction === 'v') {
-				const diffX = this.data.currentImg.x - item.x;
-				const diffY = this.data.currentImg.y - item.y;
-				let x, y;
-				if (this.options.verticalZoom) {
-					this.data.bgOpacity = 1 - Math.abs(diffY) / (this.data.windowHeight / 1.2);
-					if (this.data.bgOpacity < 0) {
-						this.data.bgOpacity = 0;
-					}
-					this.data.currentImg.scale = this.data.bgOpacity;
-					x = item.x + diffX + (item.width - item.width * this.data.currentImg.scale) / 2;
-					y = item.y + diffY + (item.height - item.height * this.data.currentImg.scale) / 2;
-				} else {
-					x = item.x;
-					y = item.y + diffY;
-					this.data.currentImg.scale = 1;
-				}
-				this.bg.style.opacity = this.data.bgOpacity;
-				if (this.options.useTransition) {
-					this.bg.style.transition = 'none';
-					item.element.style.transition = 'none';
-					item.element.style.transform = 'translate3d(' + x + 'px, ' + y + 'px , 0) scale(' + this.data.currentImg.scale + ')';
-				} else {
-					this.data.currentImg.width = item.width * this.data.currentImg.scale;
-					this.data.currentImg.height = item.height * this.data.currentImg.scale;
-					item.element.style.width = this.data.currentImg.width + 'px';
-					item.element.style.height = this.data.currentImg.height + 'px';
-					item.element.style.transform = 'translate3d(' + x + 'px, ' + y + 'px , 0)';
-				}
-			}
-		} else {
+		// 如果图片是放大状态
+		if (this.data.currentImg.width > this.data.windowWidth || this.data.currentImg.height > this.data.windowHeight) {
+			this.data.currentImg.x += this.data.step.x;
+			this.data.currentImg.y += this.data.step.y;
 			this.handleBoundary();
 			if (this.options.useTransition) {
 				item.element.style.transition = 'none';
 				item.element.style.transform = 'translate3d(' + this.data.currentImg.x + 'px, ' + this.data.currentImg.y + 'px, 0) scale(' + this.data.currentImg.scale + ')';
 			} else {
 				item.element.style.transform = 'translate3d(' + this.data.currentImg.x + 'px, ' + this.data.currentImg.y + 'px, 0)';
+			}
+		} else {
+			if (this.data.direction === 'v' && this.data.currentImg.verticalToClose) {
+				if (this.options.verticalZoom) {
+					this.data.bgOpacity = 1 - Math.abs(this.data.distance.y) / (this.data.windowHeight / 1.2);
+					if (this.data.bgOpacity < 0) {
+						this.data.bgOpacity = 0;
+					}
+					this.data.currentImg.scale = this.data.bgOpacity;
+					this.data.currentImg.width = item.width * this.data.currentImg.scale;
+					this.data.currentImg.height = item.height * this.data.currentImg.scale;
+					this.data.currentImg.x = item.x + this.data.distance.x + (item.width - this.data.currentImg.width) / 2;
+					this.data.currentImg.y = item.y + this.data.distance.y + (item.height - this.data.currentImg.height) / 2;
+				} else {
+					this.data.currentImg.x = item.x;
+					this.data.currentImg.y = item.y + this.data.distance.y;
+					this.data.currentImg.scale = 1;
+				}
+				this.bg.style.opacity = this.data.bgOpacity;
+				if (this.options.useTransition) {
+					this.bg.style.transition = 'none';
+					item.element.style.transition = 'none';
+					item.element.style.transform = 'translate3d(' + this.data.currentImg.x + 'px, ' + this.data.currentImg.y + 'px , 0) scale(' + this.data.currentImg.scale + ')';
+				} else {
+					item.element.style.width = this.data.currentImg.width + 'px';
+					item.element.style.height = this.data.currentImg.height + 'px';
+					item.element.style.transform = 'translate3d(' + this.data.currentImg.x + 'px, ' + this.data.currentImg.y + 'px , 0)';
+				}
 			}
 		}
 	},
@@ -846,9 +863,8 @@ const nonameGallery = {
 		const MIN_SWIPE_DISTANCE = Math.round(this.data.windowWidth * 0.15);
 		const lastIndex = this.data.index;
 		const lastItem = this.data.previewList[lastIndex];
-		const diffX = this.data.wrapTranslateX - (this.data.index * this.data.windowWidth * -1);
-		if (Math.abs(diffX) > MIN_SWIPE_DISTANCE) {
-			if (diffX > 0) {
+		if (Math.abs(this.data.distance.x) > MIN_SWIPE_DISTANCE) {
+			if (this.data.distance.x > 0) {
 				if (lastIndex > 0) {
 					this.data.index--;
 				}
@@ -879,7 +895,7 @@ const nonameGallery = {
 					}
 					lastItem.element.style.cursor = 'zoom-in';
 				}
-				this.setCurrentImg(item.x, item.y, item.width, item.height, 1);
+				this.setCurrentImg(item.x, item.y, item.width, item.height, 1, true);
 			}
 		}
 		let x = this.data.windowWidth * this.data.index * -1;
@@ -904,10 +920,10 @@ const nonameGallery = {
 	handleImgMoveEnd: function () {
 		const MIN_CLOSE_DISTANCE = Math.round(this.data.windowHeight * 0.15);
 		const item = this.data.previewList[this.data.index];
-		const diffY = this.data.currentImg.y - item.y;
 		if (this.data.direction === 'v' && this.data.currentImg.width <= this.data.windowWidth && this.data.currentImg.height <= this.data.windowHeight) {
-			if (Math.abs(diffY) > MIN_CLOSE_DISTANCE) {
+			if (Math.abs(this.data.distance.y) > MIN_CLOSE_DISTANCE) {
 				this.close();
+				this.data.bgOpacity = 1;
 			} else {
 				if (this.options.useTransition) {
 					item.element.style.transition = 'transform ' + this.options.duration + 'ms, opacity ' + this.options.duration + 'ms';
@@ -921,19 +937,20 @@ const nonameGallery = {
 						img: {
 							width: { from: this.data.currentImg.width, to: item.width },
 							height: { from: this.data.currentImg.height, to: item.height },
-							x: { from: item.x, to: item.x },
+							x: { from: this.data.currentImg.x, to: item.x },
 							y: { from: this.data.currentImg.y, to: item.y }
 						},
 						type: 'bgAndImg',
 						index: this.data.index
 					}
-					if (this.options.verticalZoom) {
-						obj.img.x.from = this.data.currentImg.x + (item.width - this.data.currentImg.width) / 2;
-						obj.img.y.from = this.data.currentImg.y + (item.height - this.data.currentImg.height) / 2;
-					}
+					// if (this.options.verticalZoom) {
+					// 	obj.img.x.from = this.data.currentImg.x + (item.width - this.data.currentImg.width) / 2;
+					// 	obj.img.y.from = this.data.currentImg.y + (item.height - this.data.currentImg.height) / 2;
+					// }
 					this.raf(obj);
 				}
-				this.setCurrentImg(item.x, item.y, item.width, item.height, 1);
+				this.setCurrentImg(item.x, item.y, item.width, item.height, 1, true);
+				this.data.bgOpacity = 1;
 			}
 		}
 	},
@@ -1002,6 +1019,8 @@ const nonameGallery = {
 			}
 			this.data.wrapTranslateX = x;
 			this.counter.innerHTML = (this.data.index + 1) + ' / ' + this.data.previewList.length;
+			const item = this.data.previewList[this.data.index];
+			this.setCurrentImg(item.x, item.y, item.width, item.height, 1, true);
 		}
 	},
 	/**
