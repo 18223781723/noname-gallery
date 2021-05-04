@@ -34,13 +34,12 @@ const nonameGallery = {
 			width: 0, // 图片当前高度
 			height: 0, // 图片当前宽度
 			scale: 0, // 当前图片缩放值
-			verticalToClose: true // 垂直滑动关闭
+			status: ''
 		},
 		bgOpacity: 1, // 背景透明度
 		start: { x: 0, y: 0 }, // 第一根手指坐标
 		start2: { x: 0, y: 0 }, // 第二根手指坐标
 		step: { x: 0, y: 0 }, // 相对于上一次移动差值
-		// stepSum: { x: 0, y: 0 }, // 移动差值总和大于10判断滑动方向
 		distance: { x: 0, y: 0 }, // 相对于第一次点击位置移动距离
 		lastDistance: { x: 0, y: 0 }, // 双指滑动时记录上一次移动距离
 		lastMove: { x: 0, y: 0 }, // 上一次移动
@@ -61,7 +60,7 @@ const nonameGallery = {
 		index: 0, // 索引
 		showOpacity: false, // 淡入淡出
 		zoomToScreenCenter: false, // 将放大区域移动到屏幕中心显示
-		verticalZoom: !false, // 垂直滑动缩放图片
+		verticalZoom: true, // 垂直滑动缩放图片
 		openKeyboard: false, // 开启键盘 esc关闭，方向键切换图片
 		useTransition: false, // 使用transition实现动画或requestAnimationFrame
 		minScale: 1.5, // 最小放大倍数
@@ -85,7 +84,7 @@ const nonameGallery = {
 
 		this.data.index = this.options.index;
 		const item = this.data.previewList[this.data.index];
-		this.setCurrentImg(item.x, item.y, item.width, item.height, 1, true);
+		this.setCurrentImg(item.x, item.y, item.width, item.height, 1, '');
 
 		this.setWrap();
 
@@ -318,14 +317,14 @@ const nonameGallery = {
 	 * @param {number} height 高度
 	 * @param {number} scale 缩放值
 	 */
-	setCurrentImg: function (x, y, width, height, scale, flag) {
+	setCurrentImg: function (x, y, width, height, scale, status) {
 		this.data.currentImg = {
 			x: x,
 			y: y,
 			width: width,
 			height: height,
 			scale: scale,
-			verticalToClose: flag
+			status: status
 		};
 	},
 	/**
@@ -341,7 +340,6 @@ const nonameGallery = {
 			this.data.lastMove = { x: e.clientX, y: e.clientY };
 			this.data.distance = { x: 0, y: 0 };
 			this.data.lastDistance = { x: 0, y: 0 };
-			// this.data.stepSum = { x: 0, y: 0 };
 			this.data.clickCount = 1;
 			this.data.direction = '';
 			this.data.dragTarget = '';
@@ -390,7 +388,6 @@ const nonameGallery = {
 		if (e.touches.length === 1) {
 			this.data.distance = { x: 0, y: 0 };
 			this.data.lastDistance = { x: 0, y: 0 };
-			// this.data.stepSum = { x: 0, y: 0 };
 			this.data.direction = '';
 			this.data.dragTarget = '';
 			this.data.startTime = Date.now();
@@ -464,20 +461,26 @@ const nonameGallery = {
 		this.setWindowSize();
 		this.setPreviewList();
 		const item = this.data.previewList[this.data.index];
-		this.setCurrentImg(item.x, item.y, item.width, item.height, 1, true);
+		this.setCurrentImg(item.x, item.y, item.width, item.height, 1, '');
 		this.setWrap();
 		for (let i = 0, length = this.imgList.length; i < length; i++) {
 			const item = this.data.previewList[i];
 			item.element = this.imgList[i];
 			item.element.style.width = item.width + 'px';
 			item.element.style.height = item.height + 'px';
-			item.element.style.transform = 'translate3d(' + item.x + 'px, ' + item.y + 'px, 0) scale(1)';
-			item.element.style.transition = 'none';
+			if (this.options.useTransition) {
+				item.element.style.transform = 'translate3d(' + item.x + 'px, ' + item.y + 'px, 0) scale(1)';
+				item.element.style.transition = 'none';
+			} else {
+				item.element.style.transform = 'translate3d(' + item.x + 'px, ' + item.y + 'px, 0)';
+			}
 			item.element.style.cursor = 'zoom-in';
 		}
 		this.wrap.style.width = this.data.wrapWidth + 'px';
 		this.wrap.style.transform = 'translate3d(' + this.data.wrapTranslateX + 'px, 0, 0)';
-		this.wrap.style.transition = 'none';
+		if (this.options.useTransition) {
+			this.wrap.style.transition = 'none';
+		}
 		this.data.clickCount = 0;
 	},
 	/**
@@ -523,7 +526,7 @@ const nonameGallery = {
 				this.raf(obj);
 			}
 			item.element.style.cursor = 'zoom-in';
-			this.setCurrentImg(item.x, item.y, item.width, item.height, 1, true);
+			this.setCurrentImg(item.x, item.y, item.width, item.height, 1, '');
 		} else { // 放大
 			let ix, iy, x, y;
 			const halfWindowWidth = Math.round(this.data.windowWidth / 2);
@@ -581,13 +584,14 @@ const nonameGallery = {
 				this.raf(obj);
 			}
 			item.element.style.cursor = 'zoom-out';
-			this.setCurrentImg(x, y, item.maxWidth, item.maxHeight, item.maxScale, false);
+			this.setCurrentImg(x, y, item.maxWidth, item.maxHeight, item.maxScale, '');
 		}
 	},
 	/**
 	 * 鼠标或单指移动
 	 */
 	handleMove: function (e) {
+		if (this.data.currentImg.status === 'shrink') return;
 		const x = e.type === 'touchmove' ? e.touches[0].clientX : e.clientX;
 		const y = e.type === 'touchmove' ? e.touches[0].clientY : e.clientY;
 		this.data.step = { x: x - this.data.lastMove.x, y: y - this.data.lastMove.y };
@@ -595,8 +599,6 @@ const nonameGallery = {
 		this.data.distance.y = y - this.data.start.y + this.data.lastDistance.y;
 		this.data.lastMove = { x: x, y: y };
 		this.data.lastMoveTime = Date.now();
-		// this.data.stepSum.x += this.data.step.x;
-		// this.data.stepSum.y += this.data.step.y;
 		if (Math.abs(this.data.distance.x) > 10 || Math.abs(this.data.distance.y) > 10) {
 			this.data.clickCount = 0;
 			// 获取移动方向
@@ -615,8 +617,11 @@ const nonameGallery = {
 	 * 双指缩放、移动
 	 */
 	handlePinch: function (e) {
-		// 如果dragTarget = 'wrap' 或者下滑关闭时，禁止双指缩放
-		if (this.data.dragTarget === 'wrap' || this.data.direction === 'v') return;
+		// 如果dragTarget = 'wrap' 或者垂直滑动关闭时，禁止双指缩放
+		if (this.data.dragTarget === 'wrap' || this.data.currentImg.status === 'verticalToClose') return;
+		if (this.data.dragTarget === '') {
+			this.data.dragTarget = 'img';
+		}
 		this.data.lastTwoFingersTime = Date.now();
 		const item = this.data.previewList[this.data.index];
 		const touche = { x: e.touches[0].clientX, y: e.touches[0].clientY };
@@ -635,6 +640,9 @@ const nonameGallery = {
 		} else if (this.data.currentImg.scale < 0.7) {
 			this.data.currentImg.scale = 0.7;
 			ratio = 1;
+		}
+		if (this.data.currentImg.scale < 1) {
+			this.data.currentImg.status = 'shrink';
 		}
 		if (this.data.currentImg.width > item.maxWidth) {
 			this.data.currentImg.width = item.maxWidth;
@@ -763,7 +771,7 @@ const nonameGallery = {
 					flag = true;
 				}
 			} else {
-				// 图片宽度小于屏幕宽度，但大未被双指缩小
+				// 图片宽度小于屏幕宽度，但未被双指缩小
 				if (this.data.currentImg.width >= this.data.previewList[this.data.index].width) {
 					flag2 = true;
 				}
@@ -827,7 +835,8 @@ const nonameGallery = {
 				item.element.style.transform = 'translate3d(' + this.data.currentImg.x + 'px, ' + this.data.currentImg.y + 'px, 0)';
 			}
 		} else {
-			if (this.data.direction === 'v' && this.data.currentImg.verticalToClose) {
+			if (this.data.direction === 'v' && this.data.currentImg.width <= item.width && this.data.currentImg.height <= item.height) {
+				this.data.currentImg.status = 'verticalToClose';
 				if (this.options.verticalZoom) {
 					this.data.bgOpacity = 1 - Math.abs(this.data.distance.y) / (this.data.windowHeight / 1.2);
 					if (this.data.bgOpacity < 0) {
@@ -895,7 +904,7 @@ const nonameGallery = {
 					}
 					lastItem.element.style.cursor = 'zoom-in';
 				}
-				this.setCurrentImg(item.x, item.y, item.width, item.height, 1, true);
+				this.setCurrentImg(item.x, item.y, item.width, item.height, 1, '');
 			}
 		}
 		let x = this.data.windowWidth * this.data.index * -1;
@@ -920,8 +929,8 @@ const nonameGallery = {
 	handleImgMoveEnd: function () {
 		const MIN_CLOSE_DISTANCE = Math.round(this.data.windowHeight * 0.15);
 		const item = this.data.previewList[this.data.index];
-		if (this.data.direction === 'v' && this.data.currentImg.width <= this.data.windowWidth && this.data.currentImg.height <= this.data.windowHeight) {
-			if (Math.abs(this.data.distance.y) > MIN_CLOSE_DISTANCE) {
+		if (this.data.currentImg.scale <= 1) {
+			if (this.data.direction === 'v' && Math.abs(this.data.distance.y) > MIN_CLOSE_DISTANCE) {
 				this.close();
 				this.data.bgOpacity = 1;
 			} else {
@@ -943,14 +952,10 @@ const nonameGallery = {
 						type: 'bgAndImg',
 						index: this.data.index
 					}
-					// if (this.options.verticalZoom) {
-					// 	obj.img.x.from = this.data.currentImg.x + (item.width - this.data.currentImg.width) / 2;
-					// 	obj.img.y.from = this.data.currentImg.y + (item.height - this.data.currentImg.height) / 2;
-					// }
 					this.raf(obj);
 				}
-				this.setCurrentImg(item.x, item.y, item.width, item.height, 1, true);
 				this.data.bgOpacity = 1;
+				this.setCurrentImg(item.x, item.y, item.width, item.height, 1, '');
 			}
 		}
 	},
@@ -1020,7 +1025,7 @@ const nonameGallery = {
 			this.data.wrapTranslateX = x;
 			this.counter.innerHTML = (this.data.index + 1) + ' / ' + this.data.previewList.length;
 			const item = this.data.previewList[this.data.index];
-			this.setCurrentImg(item.x, item.y, item.width, item.height, 1, true);
+			this.setCurrentImg(item.x, item.y, item.width, item.height, 1, '');
 		}
 	},
 	/**
