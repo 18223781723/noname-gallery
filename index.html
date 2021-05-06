@@ -49,20 +49,20 @@
     <p>JavaScript image gallery, easy to use</p>
 
     <div class="img-box">
-        <img class="img" src="src/images/square1.jpg" alt="">
-        <img class="img" src="src/images/long1.jpg" alt="">
-        <img class="img" src="src/images/long2.jpg" alt="">
-        <img class="img" src="src/images/wide1.jpg" alt="">
-        <img class="img" src="src/images/wide2.jpg" alt="">
-        <img class="img" src="src/images/wide3.jpg" alt="">
+        <img class="img" src="src/images/img-1.jpg" alt="">
+        <img class="img" src="src/images/img-2.jpg" alt="">
+        <img class="img" src="src/images/img-3.jpg" alt="">
+        <img class="img" src="src/images/img-4.jpg" alt="">
+        <img class="img" src="src/images/img-5.jpg" alt="">
+        <img class="img" src="src/images/img-6.jpg" alt="">
     </div>
 
     <div class="config-box">
         <label><input type="checkbox" id="fadeInOut"> fadeInOut</label><br>
-        <label><input type="checkbox" id="zoomToScreenCenter"> zoomToScreenCenter</label><br>
-        <label><input type="checkbox" id="verticalZoom" checked> verticalZoom</label><br>
-        <label><input type="checkbox" id="openKeyboard"> openKeyboard</label><br>
         <label><input type="checkbox" id="useTransition"> useTransition</label><br>
+        <label><input type="checkbox" id="verticalZoom" checked> verticalZoom</label><br>
+        <label><input type="checkbox" id="openKeyboard" checked> openKeyboard</label><br>
+        <label><input type="checkbox" id="zoomToScreenCenter"> zoomToScreenCenter</label><br>
         <div>duration <input type="range" value="300" step="300" min="300" max="3000" id="duration"><span>300ms</span>
         </div>
     </div>
@@ -71,9 +71,10 @@
     <script src="dist/noname-gallery.js"></script>
     <script>
         // 初始化变量
-        const options = {};
-        options.verticalZoom = true;
-        options.useTransition = false;
+        const options = {
+            fadeInOut: false,
+            useTransition: false
+        };
         const box = document.querySelector('.config-box');
         const imgBox = document.querySelector('.img-box');
         const imgList = document.querySelectorAll('.img');

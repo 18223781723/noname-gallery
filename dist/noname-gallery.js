@@ -42,13 +42,13 @@
 	NonameGallery.prototype.defaults = {
 		list: [],
 		index: 0,
-		fadeInOut: false,
-		zoomToScreenCenter: false,
-		verticalZoom: false,
-		openKeyboard: false,
+		fadeInOut: true,
 		useTransition: true,
-		minScale: 1.5,
-		duration: 300
+		verticalZoom: true,
+		openKeyboard: true,
+		zoomToScreenCenter: false,
+		duration: 300,
+		minScale: 1.5
 	}
 	NonameGallery.prototype.init = function () {
 		if (this.options.list.length === 0) {

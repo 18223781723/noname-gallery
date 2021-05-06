@@ -58,13 +58,13 @@ const nonameGallery = {
 	options: {
 		list: [], // HTMLImageElement[]
 		index: 0, // 索引
-		fadeInOut: false, // 淡入淡出
-		zoomToScreenCenter: false, // 将放大区域移动到屏幕中心显示
-		verticalZoom: false, // 垂直滑动缩放图片
-		openKeyboard: false, // 开启键盘 esc关闭，方向键切换图片
+		fadeInOut: true, // 淡入淡出
 		useTransition: true, // 使用transition实现动画或requestAnimationFrame
-		minScale: 1.5, // 最小放大倍数
-		duration: 300 // 动画持续时间
+		verticalZoom: true, // 垂直滑动缩放图片
+		openKeyboard: true, // 开启键盘 esc关闭，方向键切换图片
+		zoomToScreenCenter: false, // 将放大区域移动到屏幕中心显示
+		duration: 300, // 动画持续时间
+		minScale: 1.5 // 最小放大倍数
 	},
 	/**
 	 * 初始化
