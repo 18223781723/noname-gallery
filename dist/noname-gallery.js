@@ -120,7 +120,6 @@
 			+ '<ul class="noname-gallery-wrap" style="width: ' + this.wrapWidth
 			+ 'px; transform: translate3d(' + this.wrapTranslateX + 'px, 0, 0)">';
 		for (var i = 0, length = this.options.list.length; i < length; i++) {
-			// 预览图片列表项
 			var item = this.previewList[i];
 			cssText = '';
 			if (this.options.useTransition) {
@@ -703,7 +702,6 @@
 					this.index++;
 				}
 			}
-			// 切换时，如果之前图片放大过，则恢复
 			if (lastIndex !== this.index) {
 				var item = this.previewList[this.index];
 				if (this.currentImg.width > lastItem.width || this.currentImg.height > lastItem.height) {
