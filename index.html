@@ -46,7 +46,7 @@
 
 <body>
     <h1>NonameGallery</h1>
-    <p>JavaScript gallery, easy to use</p>
+    <p>JavaScript image gallery, easy to use</p>
 
     <div class="img-box">
         <img class="img" src="src/images/square1.jpg" alt="">
@@ -58,12 +58,12 @@
     </div>
 
     <div class="config-box">
-        <label><input type="checkbox" id="showOpacity"> showOpacity</label><br>
+        <label><input type="checkbox" id="fadeInOut"> fadeInOut</label><br>
         <label><input type="checkbox" id="zoomToScreenCenter"> zoomToScreenCenter</label><br>
-        <label><input type="checkbox" id="verticalZoom"> verticalZoom</label><br>
+        <label><input type="checkbox" id="verticalZoom" checked> verticalZoom</label><br>
         <label><input type="checkbox" id="openKeyboard"> openKeyboard</label><br>
         <label><input type="checkbox" id="useTransition"> useTransition</label><br>
-        <div>duration <input type="range" value="300" step="100" min="300" max="3000" id="duration"><span>300ms</span>
+        <div>duration <input type="range" value="300" step="300" min="300" max="3000" id="duration"><span>300ms</span>
         </div>
     </div>
 
@@ -72,6 +72,8 @@
     <script>
         // 初始化变量
         const options = {};
+        options.verticalZoom = true;
+        options.useTransition = false;
         const box = document.querySelector('.config-box');
         const imgBox = document.querySelector('.img-box');
         const imgList = document.querySelectorAll('.img');
@@ -80,14 +82,12 @@
         box.addEventListener('change', function (e) {
             const id = e.target.id;
             if (id === 'duration') {
-                options[id] = e.target.value;
+                options[id] = Number(e.target.value);
                 e.target.nextSibling.innerHTML = e.target.value + 'ms';
             } else {
                 options[id] = e.target.checked;
             }
-
         });
-
         // img click事件委托
         imgBox.addEventListener('click', function (e) {
             if (e.target.tagName === 'IMG') {
@@ -97,8 +97,8 @@
                 // options.index = imgElementList.indexOf(e.target);
                 // 初始化gallery
                 const gallery = new NonameGallery(options);
-                // gallery.init();
-                nonameGallery.init(options);
+                gallery.init();
+                // nonameGallery.init(options);
             }
         });
     </script>

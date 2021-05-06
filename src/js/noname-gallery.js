@@ -34,7 +34,7 @@ const nonameGallery = {
 			width: 0, // 图片当前高度
 			height: 0, // 图片当前宽度
 			scale: 0, // 当前图片缩放值
-			status: ''
+			status: '' // 图片当前状态 shrink=当前图片scale<1 verticalToClose=垂直滑动图片关闭画廊 inertia=惯性滑动
 		},
 		bgOpacity: 1, // 背景透明度
 		start: { x: 0, y: 0 }, // 第一根手指坐标
@@ -52,17 +52,17 @@ const nonameGallery = {
 		singleClickTimer: null, // 计时器
 		startTime: null, // touchstart时间戳
 		lastMoveTime: null, // 鼠标松开距离最后一次移动小于100ms执行惯性滑动
-		lastTwoFingersTime: null, // 距离上一次双指在屏幕上小于300ms不执行惯性滑动
+		rafId: null // requestAnimationFrame id
 	},
 	// 配置
 	options: {
 		list: [], // HTMLImageElement[]
 		index: 0, // 索引
-		showOpacity: false, // 淡入淡出
+		fadeInOut: false, // 淡入淡出
 		zoomToScreenCenter: false, // 将放大区域移动到屏幕中心显示
-		verticalZoom: true, // 垂直滑动缩放图片
+		verticalZoom: false, // 垂直滑动缩放图片
 		openKeyboard: false, // 开启键盘 esc关闭，方向键切换图片
-		useTransition: false, // 使用transition实现动画或requestAnimationFrame
+		useTransition: true, // 使用transition实现动画或requestAnimationFrame
 		minScale: 1.5, // 最小放大倍数
 		duration: 300 // 动画持续时间
 	},
@@ -73,28 +73,35 @@ const nonameGallery = {
 	init: function (options) {
 		// 合并options
 		Object.assign(this.options, options);
-
+		// 错误处理
 		if (this.options.list.length === 0) {
 			throw new Error('options.list can not be empty array');
 		}
-
+		// 设置窗口大小
 		this.setWindowSize();
-
+		// 设置previewList
 		this.setPreviewList();
-
+		// 设置当前图片坐标和缩放值
 		this.data.index = this.options.index;
 		const item = this.data.previewList[this.data.index];
 		this.setCurrentImg(item.x, item.y, item.width, item.height, 1, '');
-
+		// 设置wrap宽度和偏移量
 		this.setWrap();
-
+		// 渲染
 		this.render();
-
+		// 设置属性值
 		this.setProperties();
-
+		// 打开画廊
 		this.open();
-
+		// 事件绑定
 		this.bindEventListener();
+	},
+	/**
+	 * 设置窗口大小
+	 */
+	setWindowSize: function () {
+		this.data.windowWidth = window.innerWidth;
+		this.data.windowHeight = window.innerHeight;
 	},
 	/**
 	 * 设置previewList
@@ -129,6 +136,25 @@ const nonameGallery = {
 		}
 	},
 	/**
+	 * 设置当前图片坐标和缩放值
+	 * @param {number} x 横坐标
+	 * @param {number} y 纵坐标
+	 * @param {number} width 宽度
+	 * @param {number} height 高度
+	 * @param {number} scale 缩放值
+	 * @param {string} status 状态 shrink verticalToClose inertia
+	 */
+	setCurrentImg: function (x, y, width, height, scale, status) {
+		this.data.currentImg = {
+			x: x,
+			y: y,
+			width: width,
+			height: height,
+			scale: scale,
+			status: status
+		};
+	},
+	/**
 	 * 设置wrap宽度和偏移量
 	 */
 	setWrap: function () {
@@ -156,7 +182,7 @@ const nonameGallery = {
 				cssText = 'width: ' + item.width + 'px; height: ' + item.height + 'px;';
 				if (this.data.index === i) {
 					cssText += 'transform: translate3d(' + item.thumbnail.x + 'px, ' + item.thumbnail.y + 'px, 0) scale(' + item.thumbnail.scale + ');';
-					if (this.options.showOpacity) {
+					if (this.options.fadeInOut) {
 						cssText += ' opacity: 0;';
 					}
 				} else {
@@ -167,7 +193,7 @@ const nonameGallery = {
 				if (this.data.index === i) {
 					cssText = 'width: ' + item.thumbnail.width + 'px; height: ' + item.thumbnail.height + 'px;';
 					cssText += ' transform: translate3d(' + item.thumbnail.x + 'px, ' + item.thumbnail.y + 'px, 0);';
-					if (this.options.showOpacity) {
+					if (this.options.fadeInOut) {
 						cssText += ' opacity: 0;';
 					}
 				} else {
@@ -197,7 +223,7 @@ const nonameGallery = {
 		}
 	},
 	/**
-	 * 打开
+	 * 打开画廊
 	 */
 	open: function () {
 		// 当前预览图片
@@ -207,7 +233,7 @@ const nonameGallery = {
 			// 强制重绘，否则合并计算样式，导致无法触发过渡效果，或使用setTimeout，个人猜测最短时长等于，1000 / 60 = 16.66666 ≈ 17
 			window.getComputedStyle(item.element).opacity;
 			this.bg.style.opacity = '1';
-			if (this.options.showOpacity) {
+			if (this.options.fadeInOut) {
 				item.element.style.opacity = '1';
 			}
 			item.element.style.transform = 'translate3d(' + item.x + 'px,' + item.y + 'px, 0) scale(1)';
@@ -225,7 +251,7 @@ const nonameGallery = {
 				type: 'bgAndImg',
 				index: this.data.index
 			}
-			if (this.options.showOpacity) {
+			if (this.options.fadeInOut) {
 				obj.img.opacity = { from: 0, to: 1 };
 			}
 			this.raf(obj);
@@ -237,7 +263,7 @@ const nonameGallery = {
 	close: function () {
 		const item = this.data.previewList[this.data.index];
 		if (this.options.useTransition) {
-			if (this.options.showOpacity) {
+			if (this.options.fadeInOut) {
 				item.element.style.opacity = '0';
 			}
 			item.element.style.transition = 'transform ' + this.options.duration + 'ms, opacity ' + this.options.duration + 'ms';
@@ -257,7 +283,7 @@ const nonameGallery = {
 				type: 'bgAndImg',
 				index: this.data.index
 			}
-			if (this.options.showOpacity) {
+			if (this.options.fadeInOut) {
 				obj.img.opacity = { from: 1, to: 0 };
 			}
 			this.raf(obj);
@@ -310,24 +336,6 @@ const nonameGallery = {
 		window.removeEventListener('keydown', this.handleKeydown);
 	},
 	/**
-	 * 设置当前图片坐标和缩放值
-	 * @param {number} x 横坐标
-	 * @param {number} y 纵坐标
-	 * @param {number} width 宽度
-	 * @param {number} height 高度
-	 * @param {number} scale 缩放值
-	 */
-	setCurrentImg: function (x, y, width, height, scale, status) {
-		this.data.currentImg = {
-			x: x,
-			y: y,
-			width: width,
-			height: height,
-			scale: scale,
-			status: status
-		};
-	},
-	/**
 	 * 处理mousedown
 	 * @param {MouseEvent} e
 	 */
@@ -351,10 +359,10 @@ const nonameGallery = {
 	 */
 	handleMousemove: function (e) {
 		// console.log(e.type);
-		e.preventDefault();
 		if (this.data.isMousedown) {
 			this.handleMove(e);
 		}
+		e.preventDefault();
 	},
 	/**
 	 * 处理mouseup
@@ -364,14 +372,19 @@ const nonameGallery = {
 		// console.log(e.type);
 		if (e.button === 0) {
 			this.data.isMousedown = false;
-			this.handleMoveEnd();
-
-			if (Date.now() - this.data.lastMoveTime < 100) {
-				this.handleInertial();
-			} else if (this.data.clickCount !== 0) {
+			window.cancelAnimationFrame(this.data.radId);
+			if (this.data.dragTarget === 'wrap') {
+				this.handleWrapMoveEnd();
+			} else if (this.data.dragTarget === 'img') {
+				this.handleImgMoveEnd();
+			}
+			// 响应单击事件
+			if (this.data.clickCount !== 0) {
+				// 图片放大/缩小
 				if (e.target.className === 'noname-gallery-img') {
 					this.handleZoom({ x: e.clientX, y: e.clientY });
 				} else {
+					// 关闭画廊
 					this.close();
 				}
 			}
@@ -385,6 +398,7 @@ const nonameGallery = {
 		// console.log(e.type);
 		this.data.start = { x: e.touches[0].clientX, y: e.touches[0].clientY };
 		this.data.lastMove = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+		window.cancelAnimationFrame(this.data.rafId);
 		if (e.touches.length === 1) {
 			this.data.distance = { x: 0, y: 0 };
 			this.data.lastDistance = { x: 0, y: 0 };
@@ -399,6 +413,7 @@ const nonameGallery = {
 			this.data.lastDistanceRatio = 1;
 			this.data.lastCenter = null;
 		}
+		e.preventDefault();
 	},
 	/**
 	 * 处理touchmove
@@ -406,13 +421,19 @@ const nonameGallery = {
 	 */
 	handleTouchmove: function (e) {
 		// console.log(e.type);
-		e.preventDefault();
-		// 一根手指
 		if (e.touches.length === 1) {
-			this.handleMove(e);
-		} else if (e.touches.length === 2) { // 双指缩放
-			this.handlePinch(e);
+			// 如果图片被双指缩小则不响应拖动事件
+			if (this.data.currentImg.status !== 'shrink') {
+				this.handleMove(e);
+			}
+		} else if (e.touches.length === 2) {
+			// 如果dragTarget = 'wrap' 或者垂直滑动关闭时，不响应双指缩放事件
+			if (this.data.dragTarget !== 'wrap' && this.data.currentImg.status !== 'verticalToClose') {
+				if (this.data.dragTarget === '') this.data.dragTarget = 'img';
+				this.handlePinch(e);
+			}
 		}
+		e.preventDefault();
 	},
 	/**
 	 * 处理touchend
@@ -420,19 +441,23 @@ const nonameGallery = {
 	 */
 	handleTouchend: function (e) {
 		// console.log(e.type);
-		e.preventDefault();
 		if (e.touches.length === 0) {
 			// 处理移动结束
-			this.handleMoveEnd();
+			if (this.data.dragTarget === 'wrap') {
+				this.handleWrapMoveEnd();
+			} else if (this.data.dragTarget === 'img') {
+				this.handleImgMoveEnd();
+			}
+			// 响应单击、双击事件
 			const now = Date.now();
-			if (now - this.data.lastMoveTime < 100 && now - this.data.lastTwoFingersTime > 300) {
-				this.handleInertial();
-			} else if (this.data.clickCount > 1) {
+			if (this.data.clickCount > 1) {
+				// 双击放大
 				this.data.clickCount = 0;
 				this.handleZoom(this.data.start);
 			} else if (now - this.data.startTime < 300) {
 				if (this.data.clickCount === 1) {
 					this.data.singleClickTimer = setTimeout(() => {
+						// 单击关闭
 						this.data.clickCount = 0;
 						this.close();
 					}, 300);
@@ -591,7 +616,6 @@ const nonameGallery = {
 	 * 鼠标或单指移动
 	 */
 	handleMove: function (e) {
-		if (this.data.currentImg.status === 'shrink') return;
 		const x = e.type === 'touchmove' ? e.touches[0].clientX : e.clientX;
 		const y = e.type === 'touchmove' ? e.touches[0].clientY : e.clientY;
 		this.data.step = { x: x - this.data.lastMove.x, y: y - this.data.lastMove.y };
@@ -608,7 +632,7 @@ const nonameGallery = {
 			// 处理移动中
 			if (this.data.dragTarget === 'wrap') {
 				this.handleWrapMove();
-			} else {
+			} else if (this.data.dragTarget === 'img') {
 				this.handleImgMove();
 			}
 		}
@@ -617,12 +641,7 @@ const nonameGallery = {
 	 * 双指缩放、移动
 	 */
 	handlePinch: function (e) {
-		// 如果dragTarget = 'wrap' 或者垂直滑动关闭时，禁止双指缩放
-		if (this.data.dragTarget === 'wrap' || this.data.currentImg.status === 'verticalToClose') return;
-		if (this.data.dragTarget === '') {
-			this.data.dragTarget = 'img';
-		}
-		this.data.lastTwoFingersTime = Date.now();
+		const MIN_SCALE = 0.7;
 		const item = this.data.previewList[this.data.index];
 		const touche = { x: e.touches[0].clientX, y: e.touches[0].clientY };
 		const touche2 = { x: e.touches[1].clientX, y: e.touches[1].clientY };
@@ -637,22 +656,24 @@ const nonameGallery = {
 		if (this.data.currentImg.scale > item.maxScale) {
 			this.data.currentImg.scale = item.maxScale;
 			ratio = 1;
-		} else if (this.data.currentImg.scale < 0.7) {
-			this.data.currentImg.scale = 0.7;
+		} else if (this.data.currentImg.scale < MIN_SCALE) {
+			this.data.currentImg.scale = MIN_SCALE;
 			ratio = 1;
 		}
 		if (this.data.currentImg.scale < 1) {
 			this.data.currentImg.status = 'shrink';
+		} else {
+			this.data.currentImg.status = '';
 		}
 		if (this.data.currentImg.width > item.maxWidth) {
 			this.data.currentImg.width = item.maxWidth;
-		} else if (this.data.currentImg.width < item.width * 0.7) {
-			this.data.currentImg.width = item.width * 0.7;
+		} else if (this.data.currentImg.width < item.width * MIN_SCALE) {
+			this.data.currentImg.width = Math.round(item.width * MIN_SCALE);
 		}
 		if (this.data.currentImg.height > item.maxHeight) {
 			this.data.currentImg.height = item.maxHeight;
-		} else if (this.data.currentImg.height < item.height * 0.7) {
-			this.data.currentImg.height = item.height * 0.7;
+		} else if (this.data.currentImg.height < item.height * MIN_SCALE) {
+			this.data.currentImg.height = Math.round(item.height * MIN_SCALE);
 		}
 		this.data.lastDistanceRatio = distanceRatio;
 
@@ -697,21 +718,6 @@ const nonameGallery = {
 		} else {
 			this.data.currentImg.y = (this.data.windowHeight - this.data.currentImg.height) / 2;
 		}
-	},
-	/**
-	 * 获取两点距离
-	 * @param {object} start
-	 * @param {number} start.x
-	 * @param {number} start.y
-	 * @param {object} stop
-	 * @param {number} stop.x
-	 * @param {number} stop.y
-	 * @returns
-	 */
-	getDistance: function (start, stop) {
-		let x = stop.x - start.x;
-		let y = stop.y - start.y;
-		return Math.hypot(x, y); // Math.sqrt(x * x + y * y);
 	},
 	/**
 	 * 获取图片缩放宽高
@@ -785,14 +791,19 @@ const nonameGallery = {
 		}
 	},
 	/**
-	 * 处理移动结束
+	 * 获取两点距离
+	 * @param {object} start
+	 * @param {number} start.x
+	 * @param {number} start.y
+	 * @param {object} stop
+	 * @param {number} stop.x
+	 * @param {number} stop.y
+	 * @returns
 	 */
-	handleMoveEnd: function () {
-		if (this.data.dragTarget === 'wrap') {
-			this.handleWrapMoveEnd();
-		} else {
-			this.handleImgMoveEnd();
-		}
+	getDistance: function (start, stop) {
+		let x = stop.x - start.x;
+		let y = stop.y - start.y;
+		return Math.hypot(x, y); // Math.sqrt(x * x + y * y);
 	},
 	/**
 	 * 处理wrap移动
@@ -828,6 +839,7 @@ const nonameGallery = {
 			this.data.currentImg.x += this.data.step.x;
 			this.data.currentImg.y += this.data.step.y;
 			this.handleBoundary();
+			this.data.currentImg.status = 'inertia';
 			if (this.options.useTransition) {
 				item.element.style.transition = 'none';
 				item.element.style.transform = 'translate3d(' + this.data.currentImg.x + 'px, ' + this.data.currentImg.y + 'px, 0) scale(' + this.data.currentImg.scale + ')';
@@ -837,14 +849,14 @@ const nonameGallery = {
 		} else {
 			if (this.data.direction === 'v' && this.data.currentImg.width <= item.width && this.data.currentImg.height <= item.height) {
 				this.data.currentImg.status = 'verticalToClose';
+				this.data.bgOpacity = this.decimal(1 - Math.abs(this.data.distance.y) / (this.data.windowHeight / 1.2), 5);
+				if (this.data.bgOpacity < 0) {
+					this.data.bgOpacity = 0;
+				}
 				if (this.options.verticalZoom) {
-					this.data.bgOpacity = 1 - Math.abs(this.data.distance.y) / (this.data.windowHeight / 1.2);
-					if (this.data.bgOpacity < 0) {
-						this.data.bgOpacity = 0;
-					}
 					this.data.currentImg.scale = this.data.bgOpacity;
-					this.data.currentImg.width = item.width * this.data.currentImg.scale;
-					this.data.currentImg.height = item.height * this.data.currentImg.scale;
+					this.data.currentImg.width = Math.round(item.width * this.data.currentImg.scale);
+					this.data.currentImg.height = Math.round(item.height * this.data.currentImg.scale);
 					this.data.currentImg.x = item.x + this.data.distance.x + (item.width - this.data.currentImg.width) / 2;
 					this.data.currentImg.y = item.y + this.data.distance.y + (item.height - this.data.currentImg.height) / 2;
 				} else {
@@ -929,50 +941,45 @@ const nonameGallery = {
 	handleImgMoveEnd: function () {
 		const MIN_CLOSE_DISTANCE = Math.round(this.data.windowHeight * 0.15);
 		const item = this.data.previewList[this.data.index];
-		if (this.data.currentImg.scale <= 1) {
-			if (this.data.direction === 'v' && Math.abs(this.data.distance.y) > MIN_CLOSE_DISTANCE) {
-				this.close();
-				this.data.bgOpacity = 1;
+		if (this.data.currentImg.status === 'inertia' && Date.now() - this.data.lastMoveTime < 100) {
+			this.handleInertia();
+		} else if (this.data.currentImg.status === 'verticalToClose' && Math.abs(this.data.distance.y) >= MIN_CLOSE_DISTANCE) {
+			this.close();
+			this.data.bgOpacity = 1;
+		} else if (this.data.currentImg.status === 'shrink' || (this.data.currentImg.status == 'verticalToClose' && Math.abs(this.data.distance.y) < MIN_CLOSE_DISTANCE)) {
+			if (this.options.useTransition) {
+				item.element.style.transition = 'transform ' + this.options.duration + 'ms, opacity ' + this.options.duration + 'ms';
+				item.element.style.transform = 'translate3d(' + item.x + 'px, ' + item.y + 'px, 0) scale(1)';
+				this.bg.style.opacity = '1';
 			} else {
-				if (this.options.useTransition) {
-					item.element.style.transition = 'transform ' + this.options.duration + 'ms, opacity ' + this.options.duration + 'ms';
-					item.element.style.transform = 'translate3d(' + item.x + 'px, ' + item.y + 'px, 0) scale(1)';
-					this.bg.style.opacity = '1';
-				} else {
-					const obj = {
-						bg: {
-							opacity: { from: this.data.bgOpacity, to: 1 }
-						},
-						img: {
-							width: { from: this.data.currentImg.width, to: item.width },
-							height: { from: this.data.currentImg.height, to: item.height },
-							x: { from: this.data.currentImg.x, to: item.x },
-							y: { from: this.data.currentImg.y, to: item.y }
-						},
-						type: 'bgAndImg',
-						index: this.data.index
-					}
-					this.raf(obj);
+				const obj = {
+					bg: {
+						opacity: { from: this.data.bgOpacity, to: 1 }
+					},
+					img: {
+						width: { from: this.data.currentImg.width, to: item.width },
+						height: { from: this.data.currentImg.height, to: item.height },
+						x: { from: this.data.currentImg.x, to: item.x },
+						y: { from: this.data.currentImg.y, to: item.y }
+					},
+					type: 'bgAndImg',
+					index: this.data.index
 				}
-				this.data.bgOpacity = 1;
-				this.setCurrentImg(item.x, item.y, item.width, item.height, 1, '');
+				this.raf(obj);
 			}
+			this.data.bgOpacity = 1;
+			this.setCurrentImg(item.x, item.y, item.width, item.height, 1, '');
 		}
 	},
 	/**
 	 * 处理惯性滚动
 	 */
-	handleInertial: function () {
+	handleInertia: function () {
 		const item = this.data.previewList[this.data.index];
-		const scaleWidth = item.width * this.data.currentImg.scale;
-		const scaleHeight = item.height * this.data.currentImg.scale;
-		if (scaleWidth <= this.data.windowWidth && scaleHeight <= this.data.windowHeight) {
-			return;
-		}
 		const x = this.data.currentImg.x;
 		const y = this.data.currentImg.y;
-		this.data.currentImg.x += this.data.step.x * 15;
-		this.data.currentImg.y += this.data.step.y * 15;
+		this.data.currentImg.x += this.data.step.x * 18;
+		this.data.currentImg.y += this.data.step.y * 18;
 		this.handleBoundary();
 		if (this.options.useTransition) {
 			item.element.style.transition = 'transform ' + this.options.duration + 'ms ease-out';
@@ -987,11 +994,16 @@ const nonameGallery = {
 					y: { from: y, to: this.data.currentImg.y }
 				},
 				type: 'img',
-				index: this.data.index
+				index: this.data.index,
+				duration: 500
 			}
 			this.raf(obj);
 		}
 	},
+	/**
+	 * 方向键切换图片
+	 * @param {string} type 
+	 */
 	switch: function (type) {
 		let isChange = false;
 		if (type === 'prev') {
@@ -1054,24 +1066,6 @@ const nonameGallery = {
 		return { x: x, y: y }
 	},
 	/**
-	 * 设置窗口大小
-	 */
-	setWindowSize: function () {
-		this.data.windowWidth = window.innerWidth;
-		this.data.windowHeight = window.innerHeight;
-	},
-	/**
-	 * 动画函数 先慢后快
-	 * @param {*} t 当前时间
-	 * @param {*} b 初始值
-	 * @param {*} c 变化量
-	 * @param {*} d 持续时间
-	 * @returns 
-	 */
-	easeIn: function (t, b, c, d) {
-		return c * (t /= d) * t + b;
-	},
-	/**
 	 * 动画函数 先快后慢
 	 * @param {*} from 起始位置
 	 * @param {*} to 结束位置
@@ -1091,28 +1085,29 @@ const nonameGallery = {
 		let self = this;
 		let start;
 		let count = 0;
+		let duration = obj.duration || this.options.duration;
 		function step(timestamp) {
 			if (start === undefined) {
 				start = timestamp;
 			}
 			let time = timestamp - start;
-			if (time > self.options.duration) {
-				time = self.options.duration;
+			if (time > duration) {
+				time = duration;
 				count++;
 			}
 			if (count < 2) {
 				if (obj.type === 'bgAndImg') {
-					self.bgAnimate(obj, time, self.options.duration);
-					self.imgAnimate(obj, time, self.options.duration);
+					self.bgAnimate(obj, time, duration);
+					self.imgAnimate(obj, time, duration);
 				} else if (obj.type === 'wrap') {
-					self.wrapAnimate(obj, time, self.options.duration);
+					self.wrapAnimate(obj, time, duration);
 				} else if (obj.type === 'img') {
-					self.imgAnimate(obj, time, self.options.duration);
+					self.imgAnimate(obj, time, duration);
 				}
-				window.requestAnimationFrame(step);
+				self.data.rafId = window.requestAnimationFrame(step);
 			}
 		}
-		window.requestAnimationFrame(step);
+		this.data.rafId = window.requestAnimationFrame(step);
 	},
 	/**
 	 * bg opacity动画

@@ -1,5 +1,5 @@
 # noname-gallery
-JavaScript gallery,easy to use
+JavaScript image gallery, easy to use
 
 # Getting started
 In a browser:
