@@ -80,18 +80,18 @@
 			}
 			this.previewList[i] = {};
 			var item = this.previewList[i];
-			item.x = Math.round((this.windowWidth - result.width) / 2);
-			item.y = Math.round((this.windowHeight - result.height) / 2);
-			item.width = Math.round(result.width);
-			item.height = Math.round(result.height);
-			item.maxWidth = Math.round(result.width * maxScale);
-			item.maxHeight = Math.round(result.height * maxScale);
+			item.x = this.decimal((this.windowWidth - result.width) / 2, 2);
+			item.y = this.decimal((this.windowHeight - result.height) / 2, 2);
+			item.width = this.decimal(result.width, 2);
+			item.height = this.decimal(result.height, 2);
+			item.maxWidth = this.decimal(result.width * maxScale, 2);
+			item.maxHeight = this.decimal(result.height * maxScale, 2);
 			item.maxScale = maxScale;
 			item.thumbnail = {};
-			item.thumbnail.x = Math.round(rect.left);
-			item.thumbnail.y = Math.round(rect.top);
-			item.thumbnail.width = Math.round(rect.width);
-			item.thumbnail.height = Math.round(rect.height);
+			item.thumbnail.x = this.decimal(rect.left, 2);
+			item.thumbnail.y = this.decimal(rect.top, 2);
+			item.thumbnail.width = this.decimal(rect.width, 2);
+			item.thumbnail.height = this.decimal(rect.height, 2);
 			item.thumbnail.scale = this.decimal(rect.width / result.width, 5);
 		}
 	}
@@ -418,10 +418,10 @@
 			this.setCurrentImg(item.x, item.y, item.width, item.height, 1, '');
 		} else {
 			var ix, iy, x, y;
-			var halfWindowWidth = Math.round(this.windowWidth / 2);
-			var halfWindowHeight = Math.round(this.windowHeight / 2);
-			ix = Math.round((point.x - item.x) * item.maxScale);
-			iy = Math.round((point.y - item.y) * item.maxScale);
+			var halfWindowWidth = this.windowWidth / 2;
+			var halfWindowHeight = this.windowHeight / 2;
+			ix = this.decimal((point.x - item.x) * item.maxScale, 2);
+			iy = this.decimal((point.y - item.y) * item.maxScale, 2);
 			if (item.maxWidth > this.windowWidth) {
 				if (this.options.zoomToScreenCenter) {
 					x = halfWindowWidth - ix;
@@ -434,9 +434,9 @@
 					x = this.windowWidth - item.maxWidth;
 				}
 			} else {
-				x = Math.round((this.windowWidth - item.maxWidth) / 2);
+				x = (this.windowWidth - item.maxWidth) / 2;
 			}
-			x = Math.round(x);
+			x = this.decimal(x, 2);
 			if (item.maxHeight > this.windowHeight) {
 				if (this.options.zoomToScreenCenter) {
 					y = halfWindowHeight - iy;
@@ -449,9 +449,9 @@
 					y = this.windowHeight - item.maxHeight;
 				}
 			} else {
-				y = Math.round((this.windowHeight - item.maxHeight) / 2);
+				y = (this.windowHeight - item.maxHeight) / 2;
 			}
-			y = Math.round(y);
+			y = this.decimal(y, 2);
 			if (this.options.useTransition) {
 				item.element.style.transition = 'transform ' + this.options.duration + 'ms, opacity ' + this.options.duration + 'ms';
 				item.element.style.transform = 'translate3d(' + x + 'px,' + y + 'px, 0) scale(' + item.maxScale + ')';
@@ -519,12 +519,12 @@
 		if (this.currentImg.width > item.maxWidth) {
 			this.currentImg.width = item.maxWidth;
 		} else if (this.currentImg.width < item.width * MIN_SCALE) {
-			this.currentImg.width = Math.round(item.width * MIN_SCALE);
+			this.currentImg.width = this.decimal(item.width * MIN_SCALE, 2);
 		}
 		if (this.currentImg.height > item.maxHeight) {
 			this.currentImg.height = item.maxHeight;
 		} else if (this.currentImg.height < item.height * MIN_SCALE) {
-			this.currentImg.height = Math.round(item.height * MIN_SCALE);
+			this.currentImg.height = this.decimal(item.height * MIN_SCALE, 2);
 		}
 		this.lastDistanceRatio = distanceRatio;
 
@@ -666,8 +666,8 @@
 				}
 				if (this.options.verticalZoom) {
 					this.currentImg.scale = this.bgOpacity;
-					this.currentImg.width = Math.round(item.width * this.currentImg.scale);
-					this.currentImg.height = Math.round(item.height * this.currentImg.scale);
+					this.currentImg.width = this.decimal(item.width * this.currentImg.scale, 2);
+					this.currentImg.height = this.decimal(item.height * this.currentImg.scale, 2);
 					this.currentImg.x = item.x + this.distance.x + (item.width - this.currentImg.width) / 2;
 					this.currentImg.y = item.y + this.distance.y + (item.height - this.currentImg.height) / 2;
 				} else {
@@ -795,8 +795,7 @@
 					y: { from: y, to: this.currentImg.y }
 				},
 				type: 'img',
-				index: this.index,
-				duration: 500
+				index: this.index
 			}
 			this.raf(obj);
 		}
@@ -854,7 +853,7 @@
 		var self = this;
 		var start;
 		var count = 0;
-		var duration = obj.duration || this.options.duration;
+		var duration = this.options.duration;
 		function step(timestamp) {
 			if (start === undefined) {
 				start = timestamp;
@@ -879,26 +878,25 @@
 		this.rafId = window.requestAnimationFrame(step);
 	}
 	NonameGallery.prototype.bgAnimate = function (obj, time, duration) {
-		var opacity = this.easeOut(obj.bg.opacity.from, obj.bg.opacity.to, time, duration);
-		this.bg.style.opacity = opacity;
+		this.bgOpacity = this.decimal(this.easeOut(obj.bg.opacity.from, obj.bg.opacity.to, time, duration), 5);
+		this.bg.style.opacity = this.bgOpacity;
 	}
 	NonameGallery.prototype.imgAnimate = function (obj, time, duration) {
 		var item = this.previewList[obj.index];
-		var width = this.easeOut(obj.img.width.from, obj.img.width.to, time, duration);
-		var height = this.easeOut(obj.img.height.from, obj.img.height.to, time, duration);
-		var x = this.easeOut(obj.img.x.from, obj.img.x.to, time, duration);
-		var y = this.easeOut(obj.img.y.from, obj.img.y.to, time, duration);
+		this.currentImg.width = this.decimal(this.easeOut(obj.img.width.from, obj.img.width.to, time, duration), 2);
+		this.currentImg.height = this.decimal(this.easeOut(obj.img.height.from, obj.img.height.to, time, duration), 2);
+		this.currentImg.x = this.decimal(this.easeOut(obj.img.x.from, obj.img.x.to, time, duration), 2);
+		this.currentImg.y = this.decimal(this.easeOut(obj.img.y.from, obj.img.y.to, time, duration), 2);
 		if (obj.img.opacity) {
-			var opacity = this.easeOut(obj.img.opacity.from, obj.img.opacity.to, time, duration);
-			item.element.style.opacity = opacity;
+			item.element.style.opacity = this.decimal(this.easeOut(obj.img.opacity.from, obj.img.opacity.to, time, duration), 5);
 		}
-		item.element.style.width = width + 'px';
-		item.element.style.height = height + 'px';
-		item.element.style.transform = 'translate3d(' + x + 'px, ' + y + 'px, 0)';
+		item.element.style.width = this.currentImg.width + 'px';
+		item.element.style.height = this.currentImg.height + 'px';
+		item.element.style.transform = 'translate3d(' + this.currentImg.x + 'px, ' + this.currentImg.y + 'px, 0)';
 	}
 	NonameGallery.prototype.wrapAnimate = function (obj, time, duration) {
-		var x = this.easeOut(obj.wrap.x.from, obj.wrap.x.to, time, duration);
-		this.wrap.style.transform = 'translate3d(' + x + 'px, 0, 0)';
+		this.wrapTranslateX = this.decimal(this.easeOut(obj.wrap.x.from, obj.wrap.x.to, time, duration), 2);
+		this.wrap.style.transform = 'translate3d(' + this.wrapTranslateX + 'px, 0, 0)';
 	}
 
 	if (typeof define === 'function' && define.amd) {
