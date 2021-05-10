@@ -48,7 +48,7 @@ const nonameGallery = {
 		clickCount: 0, // 点击次数 1 = 单击 大于1 = 双击
 		direction: '', // 方向 v: vertical h: horizontal
 		dragTarget: '', // wrap，img
-		isMousedown: false, // 是否按下鼠标
+		isDown: false, // 是否触发touchstart或mousedown，为true时执行touchmove或mousemove
 		singleClickTimer: null, // 计时器
 		startTime: null, // touchstart时间戳
 		lastMoveTime: null, // 鼠标松开距离最后一次移动小于100ms执行惯性滑动
@@ -343,7 +343,8 @@ const nonameGallery = {
 		// console.log(e.type);
 		// e.button 0 = 左键 1 = 滚轮 2 = 右键
 		if (e.button === 0) {
-			this.data.isMousedown = true;
+			// window.cancelAnimationFrame(this.data.radId);
+			this.data.isDown = true;
 			this.data.start = { x: e.clientX, y: e.clientY };
 			this.data.lastMove = { x: e.clientX, y: e.clientY };
 			this.data.distance = { x: 0, y: 0 };
@@ -359,7 +360,7 @@ const nonameGallery = {
 	 */
 	handleMousemove: function (e) {
 		// console.log(e.type);
-		if (this.data.isMousedown) {
+		if (this.data.isDown) {
 			this.handleMove(e);
 		}
 		e.preventDefault();
@@ -370,9 +371,8 @@ const nonameGallery = {
 	 */
 	handleMouseup: function (e) {
 		// console.log(e.type);
-		if (e.button === 0) {
-			this.data.isMousedown = false;
-			window.cancelAnimationFrame(this.data.radId);
+		if (this.data.isDown) {
+			this.data.isDown = false;
 			if (this.data.dragTarget === 'wrap') {
 				this.handleWrapMoveEnd();
 			} else if (this.data.dragTarget === 'img') {
@@ -396,9 +396,10 @@ const nonameGallery = {
 	 */
 	handleTouchstart: function (e) {
 		// console.log(e.type);
+		this.data.isDown = true;
 		this.data.start = { x: e.touches[0].clientX, y: e.touches[0].clientY };
 		this.data.lastMove = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-		window.cancelAnimationFrame(this.data.rafId);
+		// window.cancelAnimationFrame(this.data.rafId);
 		if (e.touches.length === 1) {
 			this.data.distance = { x: 0, y: 0 };
 			this.data.lastDistance = { x: 0, y: 0 };
@@ -421,16 +422,18 @@ const nonameGallery = {
 	 */
 	handleTouchmove: function (e) {
 		// console.log(e.type);
-		if (e.touches.length === 1) {
-			// 如果图片被双指缩小则不响应拖动事件
-			if (this.data.currentImg.status !== 'shrink') {
-				this.handleMove(e);
-			}
-		} else if (e.touches.length === 2) {
-			// 如果dragTarget = 'wrap' 或者垂直滑动关闭时，不响应双指缩放事件
-			if (this.data.dragTarget !== 'wrap' && this.data.currentImg.status !== 'verticalToClose') {
-				if (this.data.dragTarget === '') this.data.dragTarget = 'img';
-				this.handlePinch(e);
+		if (this.data.isDown) {
+			if (e.touches.length === 1) {
+				// 如果图片被双指缩小则不响应拖动事件
+				if (this.data.currentImg.status !== 'shrink') {
+					this.handleMove(e);
+				}
+			} else if (e.touches.length === 2) {
+				// 如果dragTarget = 'wrap' 或者垂直滑动关闭时，不响应双指缩放事件
+				if (this.data.dragTarget !== 'wrap' && this.data.currentImg.status !== 'verticalToClose') {
+					if (this.data.dragTarget === '') this.data.dragTarget = 'img';
+					this.handlePinch(e);
+				}
 			}
 		}
 		e.preventDefault();
@@ -441,34 +444,37 @@ const nonameGallery = {
 	 */
 	handleTouchend: function (e) {
 		// console.log(e.type);
-		if (e.touches.length === 0) {
-			// 处理移动结束
-			if (this.data.dragTarget === 'wrap') {
-				this.handleWrapMoveEnd();
-			} else if (this.data.dragTarget === 'img') {
-				this.handleImgMoveEnd();
-			}
-			// 响应单击、双击事件
-			const now = Date.now();
-			if (this.data.clickCount > 1) {
-				// 双击放大
-				this.data.clickCount = 0;
-				this.handleZoom(this.data.start);
-			} else if (now - this.data.startTime < 300) {
-				if (this.data.clickCount === 1) {
-					this.data.singleClickTimer = setTimeout(() => {
-						// 单击关闭
-						this.data.clickCount = 0;
-						this.close();
-					}, 300);
+		if (this.data.isDown) {
+			if (e.touches.length === 0) {
+				this.data.isDown = false;
+				// 处理移动结束
+				if (this.data.dragTarget === 'wrap') {
+					this.handleWrapMoveEnd();
+				} else if (this.data.dragTarget === 'img') {
+					this.handleImgMoveEnd();
 				}
-			} else {
-				this.data.clickCount = 0;
+				// 响应单击、双击事件
+				const now = Date.now();
+				if (this.data.clickCount > 1) {
+					// 双击放大
+					this.data.clickCount = 0;
+					this.handleZoom(this.data.start);
+				} else if (now - this.data.startTime < 300) {
+					if (this.data.clickCount === 1) {
+						this.data.singleClickTimer = setTimeout(() => {
+							// 单击关闭
+							this.data.clickCount = 0;
+							this.close();
+						}, 300);
+					}
+				} else {
+					this.data.clickCount = 0;
+				}
+			} else if (e.touches.length === 1) {
+				this.data.start = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+				this.data.lastMove = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+				this.data.lastDistance = { x: this.data.distance.x, y: this.data.distance.y };
 			}
-		} else if (e.touches.length === 1) {
-			this.data.start = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-			this.data.lastMove = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-			this.data.lastDistance = { x: this.data.distance.x, y: this.data.distance.y };
 		}
 	},
 	/**
@@ -1123,8 +1129,8 @@ const nonameGallery = {
 	 * @param {number} duration 动画持续时间
 	 */
 	bgAnimate: function (obj, time, duration) {
-		this.data.bgOpacity = this.decimal(this.easeOut(obj.bg.opacity.from, obj.bg.opacity.to, time, duration), 5);
-		this.bg.style.opacity = this.data.bgOpacity;
+		let opacity = this.decimal(this.easeOut(obj.bg.opacity.from, obj.bg.opacity.to, time, duration), 5);
+		this.bg.style.opacity = opacity;
 	},
 	/**
 	 * img zoom动画
@@ -1139,17 +1145,12 @@ const nonameGallery = {
 		let x = this.decimal(this.easeOut(obj.img.x.from, obj.img.x.to, time, duration), 2);
 		let y = this.decimal(this.easeOut(obj.img.y.from, obj.img.y.to, time, duration), 2);
 		if (obj.img.opacity) {
-			item.element.style.opacity = this.decimal(this.easeOut(obj.img.opacity.from, obj.img.opacity.to, time, duration), 5);
+			let opacity = this.decimal(this.easeOut(obj.img.opacity.from, obj.img.opacity.to, time, duration), 5);
+			item.element.style.opacity = opacity;
 		}
 		item.element.style.width = width + 'px';
 		item.element.style.height = height + 'px';
 		item.element.style.transform = 'translate3d(' + x + 'px, ' + y + 'px, 0)';
-		if (obj.index === this.data.index) {
-			this.data.currentImg.width = width;
-			this.data.currentImg.height = height;
-			this.data.currentImg.x = x;
-			this.data.currentImg.y = y;
-		}
 	},
 	/**
 	 * wrap滑动动画
@@ -1158,7 +1159,7 @@ const nonameGallery = {
 	 * @param {number} duration 动画持续时间
 	 */
 	wrapAnimate: function (obj, time, duration) {
-		this.data.wrapTranslateX = this.decimal(this.easeOut(obj.wrap.x.from, obj.wrap.x.to, time, duration), 2);
-		this.wrap.style.transform = 'translate3d(' + this.data.wrapTranslateX + 'px, 0, 0)';
+		let x = this.decimal(this.easeOut(obj.wrap.x.from, obj.wrap.x.to, time, duration), 2);
+		this.wrap.style.transform = 'translate3d(' + x + 'px, 0, 0)';
 	}
 }

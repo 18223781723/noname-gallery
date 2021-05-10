@@ -33,7 +33,7 @@
 		this.clickCount = 0;
 		this.direction = '';
 		this.dragTarget = '';
-		this.isMousedown = false;
+		this.isDown = false;
 		this.singleClickTimer = null;
 		this.startTime = null;
 		this.lastMoveTime = null;
@@ -261,7 +261,7 @@
 	}
 	NonameGallery.prototype.handleMousedown = function (e) {
 		if (e.button === 0) {
-			this.isMousedown = true;
+			this.isDown = true;
 			this.start = { x: e.clientX, y: e.clientY };
 			this.lastMove = { x: e.clientX, y: e.clientY };
 			this.distance = { x: 0, y: 0 };
@@ -272,15 +272,14 @@
 		}
 	}
 	NonameGallery.prototype.handleMousemove = function (e) {
-		if (this.isMousedown) {
+		if (this.isDown) {
 			this.handleMove(e);
 		}
 		e.preventDefault();
 	}
 	NonameGallery.prototype.handleMouseup = function (e) {
-		if (e.button === 0) {
-			this.isMousedown = false;
-			window.cancelAnimationFrame(this.radId);
+		if (this.isDown) {
+			this.isDown = false;
 			if (this.dragTarget === 'wrap') {
 				this.handleWrapMoveEnd();
 			} else if (this.dragTarget === 'img') {
@@ -296,9 +295,9 @@
 		}
 	}
 	NonameGallery.prototype.handleTouchstart = function (e) {
+		this.isDown = true;
 		this.start = { x: e.touches[0].clientX, y: e.touches[0].clientY };
 		this.lastMove = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-		window.cancelAnimationFrame(this.rafId);
 		if (e.touches.length === 1) {
 			this.distance = { x: 0, y: 0 };
 			this.lastDistance = { x: 0, y: 0 };
@@ -316,43 +315,48 @@
 		e.preventDefault();
 	}
 	NonameGallery.prototype.handleTouchmove = function (e) {
-		if (e.touches.length === 1) {
-			if (this.currentImg.status !== 'shrink') {
-				this.handleMove(e);
-			}
-		} else if (e.touches.length === 2) {
-			if (this.dragTarget !== 'wrap' && this.currentImg.status !== 'verticalToClose') {
-				if (this.dragTarget === '') this.dragTarget = 'img';
-				this.handlePinch(e);
+		if (this.isDown) {
+			if (e.touches.length === 1) {
+				if (this.currentImg.status !== 'shrink') {
+					this.handleMove(e);
+				}
+			} else if (e.touches.length === 2) {
+				if (this.dragTarget !== 'wrap' && this.currentImg.status !== 'verticalToClose') {
+					if (this.dragTarget === '') this.dragTarget = 'img';
+					this.handlePinch(e);
+				}
 			}
 		}
 		e.preventDefault();
 	}
 	NonameGallery.prototype.handleTouchend = function (e) {
-		if (e.touches.length === 0) {
-			if (this.dragTarget === 'wrap') {
-				this.handleWrapMoveEnd();
-			} else if (this.dragTarget === 'img') {
-				this.handleImgMoveEnd();
-			}
-			var now = Date.now();
-			if (this.clickCount > 1) {
-				this.clickCount = 0;
-				this.handleZoom(this.start);
-			} else if (now - this.startTime < 300) {
-				if (this.clickCount === 1) {
-					this.singleClickTimer = setTimeout(() => {
-						this.clickCount = 0;
-						this.close();
-					}, 300);
+		if (this.isDown) {
+			if (e.touches.length === 0) {
+				this.isDown = false;
+				if (this.dragTarget === 'wrap') {
+					this.handleWrapMoveEnd();
+				} else if (this.dragTarget === 'img') {
+					this.handleImgMoveEnd();
 				}
-			} else {
-				this.clickCount = 0;
+				var now = Date.now();
+				if (this.clickCount > 1) {
+					this.clickCount = 0;
+					this.handleZoom(this.start);
+				} else if (now - this.startTime < 300) {
+					if (this.clickCount === 1) {
+						this.singleClickTimer = setTimeout(() => {
+							this.clickCount = 0;
+							this.close();
+						}, 300);
+					}
+				} else {
+					this.clickCount = 0;
+				}
+			} else if (e.touches.length === 1) {
+				this.start = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+				this.lastMove = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+				this.lastDistance = { x: this.distance.x, y: this.distance.y };
 			}
-		} else if (e.touches.length === 1) {
-			this.start = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-			this.lastMove = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-			this.lastDistance = { x: this.distance.x, y: this.distance.y };
 		}
 	}
 	NonameGallery.prototype.handleTouchcancel = function () {
@@ -887,8 +891,8 @@
 		this.rafId = window.requestAnimationFrame(step);
 	}
 	NonameGallery.prototype.bgAnimate = function (obj, time, duration) {
-		this.bgOpacity = this.decimal(this.easeOut(obj.bg.opacity.from, obj.bg.opacity.to, time, duration), 5);
-		this.bg.style.opacity = this.bgOpacity;
+		var opacity = this.decimal(this.easeOut(obj.bg.opacity.from, obj.bg.opacity.to, time, duration), 5);
+		this.bg.style.opacity = opacity;
 	}
 	NonameGallery.prototype.imgAnimate = function (obj, time, duration) {
 		var item = this.previewList[obj.index];
@@ -897,21 +901,16 @@
 		var x = this.decimal(this.easeOut(obj.img.x.from, obj.img.x.to, time, duration), 2);
 		var y = this.decimal(this.easeOut(obj.img.y.from, obj.img.y.to, time, duration), 2);
 		if (obj.img.opacity) {
-			item.element.style.opacity = this.decimal(this.easeOut(obj.img.opacity.from, obj.img.opacity.to, time, duration), 5);
+			var opacity = this.decimal(this.easeOut(obj.img.opacity.from, obj.img.opacity.to, time, duration), 5);
+			item.element.style.opacity = opacity;
 		}
 		item.element.style.width = width + 'px';
 		item.element.style.height = height + 'px';
 		item.element.style.transform = 'translate3d(' + x + 'px, ' + y + 'px, 0)';
-		if (obj.index === this.index) {
-			this.currentImg.width = width;
-			this.currentImg.height = height;
-			this.currentImg.x = x;
-			this.currentImg.y = y;
-		}
 	}
 	NonameGallery.prototype.wrapAnimate = function (obj, time, duration) {
-		this.wrapTranslateX = this.decimal(this.easeOut(obj.wrap.x.from, obj.wrap.x.to, time, duration), 2);
-		this.wrap.style.transform = 'translate3d(' + this.wrapTranslateX + 'px, 0, 0)';
+		var x = this.decimal(this.easeOut(obj.wrap.x.from, obj.wrap.x.to, time, duration), 2);
+		this.wrap.style.transform = 'translate3d(' + x + 'px, 0, 0)';
 	}
 
 	if (typeof define === 'function' && define.amd) {
