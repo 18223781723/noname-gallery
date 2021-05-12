@@ -393,9 +393,9 @@
 			if (e.keyCode === 27) {
 				this.close();
 			} else if ([37, 38].includes(e.keyCode)) {
-				this.switch('prev');
+				this.handleSwitch('prev');
 			} else if ([39, 40].includes(e.keyCode)) {
-				this.switch('next');
+				this.handleSwitch('next');
 			}
 		}
 	}
@@ -813,7 +813,7 @@
 			this.raf(obj);
 		}
 	}
-	NonameGallery.prototype.switch = function (type) {
+	NonameGallery.prototype.handleSwitch = function (type) {
 		var isChange = false;
 		if (type === 'prev') {
 			if (this.index > 0) {

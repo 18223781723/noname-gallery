@@ -523,9 +523,9 @@ const nonameGallery = {
 			if (e.keyCode === 27) {
 				this.close();
 			} else if ([37, 38].includes(e.keyCode)) {
-				this.switch('prev');
+				this.handleSwitch('prev');
 			} else if ([39, 40].includes(e.keyCode)) {
-				this.switch('next');
+				this.handleSwitch('next');
 			}
 			// console.log(e.keyCode)
 		}
@@ -1017,7 +1017,7 @@ const nonameGallery = {
 	 * 方向键切换图片
 	 * @param {string} type 
 	 */
-	switch: function (type) {
+	handleSwitch: function (type) {
 		let isChange = false;
 		if (type === 'prev') {
 			if (this.data.index > 0) {
