@@ -312,7 +312,6 @@
 			this.lastDistanceRatio = 1;
 			this.lastCenter = null;
 		}
-		e.preventDefault();
 	}
 	NonameGallery.prototype.handleTouchmove = function (e) {
 		if (this.isDown) {
@@ -358,6 +357,7 @@
 				this.lastDistance = { x: this.distance.x, y: this.distance.y };
 			}
 		}
+		e.preventDefault();
 	}
 	NonameGallery.prototype.handleTouchcancel = function () {
 		this.clickCount = 0;

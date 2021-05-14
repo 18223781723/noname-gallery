@@ -414,7 +414,6 @@ const nonameGallery = {
 			this.data.lastDistanceRatio = 1;
 			this.data.lastCenter = null;
 		}
-		e.preventDefault();
 	},
 	/**
 	 * 处理touchmove
@@ -476,6 +475,7 @@ const nonameGallery = {
 				this.data.lastDistance = { x: this.data.distance.x, y: this.data.distance.y };
 			}
 		}
+		e.preventDefault();
 	},
 	/**
 	 * 处理touchcancel
