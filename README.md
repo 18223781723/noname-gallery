@@ -1,16 +1,18 @@
 # noname-gallery
 JavaScript image gallery, easy to use, no dependencies
 
+Demo: https://nonamegallery.codeman.top
+
+![二维码](https://nonamegallery.codeman.top/src/images/qrcode.png)
+
+
 # Getting started
 In a browser:
 ```javascript
-    <link rel="stylesheet" type="text/css" media="screen" href="path/noname-gallery.css">
+<link rel="stylesheet" type="text/css" media="screen" href="path/noname-gallery.css">
 
-    <script src="path/noname-gallery.js"></script>
+<script src="path/noname-gallery.js"></script>
 ```
-	
-
-	
 
 # Example
 ```javascript
@@ -34,14 +36,15 @@ In a browser:
                 list: [].slice.call(imgList, 0),
                 index: [].indexOf.call(e.target.parentNode.children, e.target)
             }
-
+            // init and open gallery
             var gallery = new NonameGallery(options);
             gallery.init();
         }
     });
 </script>
 ```
-# options
+
+# Options
 | Params | Type | Defaults | Description |
 | :---- | :---- | :---- | :---- |
 | options | object |  | 配置项 |
