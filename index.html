@@ -6,27 +6,29 @@
     <meta name="viewport"
         content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
-    <title>noname-gallery</title>
+    <title>NonameGallery</title>
+    <link rel="icon" type="image/x-icon" href="src/images/favicon.ico">
     <link rel="stylesheet" type="text/css" media="screen" href="src/css/noname-gallery.css">
     <style>
-        body {
+        * {
             margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
 
-        h1,
-        h1+p {
-            margin: 0;
-            padding-left: 15px;
-        }
-
-        h1 {
-            padding-top: 15px;
+        .container {
+            max-width: 800px;
+            width: 100%;
+            padding: 15px;
+            margin: 0 auto;
+            line-height: 1.6;
         }
 
         .img-box {
             display: flex;
             flex-wrap: wrap;
-            padding: 5px 5px 15px 15px;
+            margin-right: -10px;
+            padding: 5px 0 15px 0;
         }
 
         .img-box img {
@@ -36,35 +38,113 @@
             object-fit: cover;
         }
 
-        .config-box {
-            padding: 15px;
-            font-size: 14px;
-            line-height: 20px;
+        .config-box li {
+            display: flex;
+            align-items: center;
+            height: 26px;
+            list-style: none;
+        }
+
+        h2 {
+            margin: 15px 0 10px;
+        }
+
+        .intro-box {
+            display: flex;
+            flex-wrap: wrap;
+            margin-top: 15px;
+        }
+
+        .intro-box>div {
+            flex: 1;
+            min-width: 330px;
+        }
+
+        .intro-box img {
+            width: 180px;
+            height: 180px;
+            margin-right: 15px;
+        }
+
+        .intro-box h3 {
+            margin: 10px 0;
         }
     </style>
 </head>
 
 <body>
-    <h1>NonameGallery</h1>
-    <p>JavaScript image gallery, easy to use</p>
+    <div class="container">
+        <h1>NonameGallery</h1>
+        <p>JavaScript image gallery, easy to use.</p>
 
-    <div class="img-box">
-        <img class="img" src="src/images/img-1.jpg" alt="">
-        <img class="img" src="src/images/img-2.jpg" alt="">
-        <img class="img" src="src/images/img-3.jpg" alt="">
-        <img class="img" src="src/images/img-4.jpg" alt="">
-        <img class="img" src="src/images/img-5.jpg" alt="">
-        <img class="img" src="src/images/img-6.jpg" alt="">
-    </div>
-
-    <div class="config-box">
-        <label><input type="checkbox" id="fadeInOut"> fadeInOut</label><br>
-        <label><input type="checkbox" id="useTransition"> useTransition</label><br>
-        <label><input type="checkbox" id="verticalZoom" checked> verticalZoom</label><br>
-        <label><input type="checkbox" id="openKeyboard" checked> openKeyboard</label><br>
-        <label><input type="checkbox" id="zoomToScreenCenter"> zoomToScreenCenter</label><br>
-        <div>duration <input type="range" value="300" step="100" min="300" max="1000" id="duration"><span>300ms</span>
+        <div class="img-box">
+            <img class="img" src="src/images/image1.jpg" alt="">
+            <img class="img" src="src/images/image2.jpg" alt="">
+            <img class="img" src="src/images/image3.jpg" alt="">
+            <img class="img" src="src/images/image4.jpg" alt="">
+            <img class="img" src="src/images/image5.jpg" alt="">
+            <img class="img" src="src/images/image6.jpg" alt="">
         </div>
+
+        <ul class="config-box">
+            <li>
+                <label><input type="checkbox" id="fadeInOut"> fadeInOut</label>
+            </li>
+            <li>
+                <label><input type="checkbox" id="useTransition"> useTransition</label>
+            </li>
+            <li>
+                <label><input type="checkbox" id="verticalZoom" checked> verticalZoom</label>
+            </li>
+            <li>
+                <label><input type="checkbox" id="openKeyboard" checked> openKeyboard</label>
+            </li>
+            <li>
+                <label><input type="checkbox" id="zoomToScreenCenter"> zoomToScreenCenter</label>
+            </li>
+            <li>
+                <span>duration</span>
+                <input type="range" value="300" step="10" min="300" max="500" id="duration" style="margin: 0 5px;">
+                <span>300ms</span>
+            </li>
+        </ul>
+
+        <h2>手势支持</h2>
+        <p>支持所有基本手势，包括单击关闭画廊，双击缩放图片，双指缩放图片，左右滑动切换图片。</p>
+        <div class="intro-box">
+            <img src="src/images/spread.png" alt="">
+            <div>
+                <h3>双指放大图片</h3>
+                <p>当用户两根手指分别向外扩展时，图片也会相应放大。最大放大尺寸会在图片实际宽高和图片预览宽高*最小放大倍数(用户可配置)两者中取较大值。
+                </p>
+            </div>
+        </div>
+        <div class="intro-box">
+            <img src="src/images/pinch.png" alt="">
+            <div>
+                <h3>双指缩小图片</h3>
+                <p>当用户两根手指分别向内收缩时，图片则会相应缩小。最小尺寸为图片预览宽高*0.7。
+                </p>
+            </div>
+        </div>
+        <div class="intro-box">
+            <img src="src/images/swipe.png" alt="">
+            <div>
+                <h3>水平滑动切换图片</h3>
+                <p>当用户单个手指水平滑动距离超过屏幕宽度*0.15时，则会切换图片。如果图片为放大状态且宽度大于屏幕宽度，则需要水平滑动两次才能切换，第一次滑动到图片边界，第二次滑动距离大于屏幕宽度*0.15才能切换图片。
+                </p>
+            </div>
+        </div>
+        <div class="intro-box">
+            <img src="src/images/vertical.png" alt="">
+            <div>
+                <h3>垂直滑动关闭画廊</h3>
+                <p>当用户单个手指垂直滑动距离超过屏幕高度*0.15时，会关闭画廊，如果图片为放大状态，则会响应拖动查看图片事件。
+                </p>
+            </div>
+        </div>
+        <h2>PC端如何操作</h2>
+        <p>PC端操作基本类似，支持单击关闭画廊，点击图片缩放，增加键盘控制，ESC关闭画廊，方向键切换图片。</p>
     </div>
 
     <script src="src/js/noname-gallery.js"></script>
@@ -75,20 +155,22 @@
             fadeInOut: false,
             useTransition: false
         };
-        const box = document.querySelector('.config-box');
+
         const imgBox = document.querySelector('.img-box');
         const imgList = document.querySelectorAll('.img');
+        const configBox = document.querySelector('.config-box');
 
         // checkbox change事件委托
-        box.addEventListener('change', function (e) {
+        configBox.addEventListener('change', function (e) {
             const id = e.target.id;
             if (id === 'duration') {
                 options[id] = Number(e.target.value);
-                e.target.nextSibling.innerHTML = e.target.value + 'ms';
+                e.target.nextElementSibling.innerHTML = e.target.value + 'ms';
             } else {
                 options[id] = e.target.checked;
             }
         });
+
         // img click事件委托
         imgBox.addEventListener('click', function (e) {
             if (e.target.tagName === 'IMG') {
