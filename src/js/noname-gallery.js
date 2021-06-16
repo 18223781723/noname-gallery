@@ -889,15 +889,6 @@ const nonameGallery = {
 	handleWrapMoveEnd: function () {
 		const MIN_SWIPE_DISTANCE = Math.round(this.data.windowWidth * 0.15);
 		const lastIndex = this.data.index;
-		const lastItem = this.data.previewList[lastIndex];
-		const lastImg = {
-			width: this.data.currentImg.width,
-			height: this.data.currentImg.height,
-			x: this.data.currentImg.x,
-			y: this.data.currentImg.y,
-			scale: this.data.currentImg.scale,
-			status: this.data.currentImg.status
-		};
 		if (Math.abs(this.data.distance.x) > MIN_SWIPE_DISTANCE) {
 			if (this.data.distance.x > 0) {
 				if (lastIndex > 0) {
@@ -909,45 +900,9 @@ const nonameGallery = {
 				}
 			}
 			// 切换时，如果之前图片放大过，则恢复
-			if (lastIndex !== this.data.index) {
-				if (lastImg.width > lastItem.width || lastImg.height > lastItem.height) {
-					if (this.options.useTransition) {
-						lastItem.element.style.transition = 'transform ' + this.options.duration + 'ms, opacity ' + this.options.duration + 'ms';
-						lastItem.element.style.transform = 'translate3d(' + lastItem.x + 'px, ' + lastItem.y + 'px, 0) scale(1)';
-					} else {
-						const obj = {
-							img: {
-								width: { from: lastImg.width, to: lastItem.width },
-								height: { from: lastImg.height, to: lastItem.height },
-								x: { from: lastImg.x, to: lastItem.x },
-								y: { from: lastImg.y, to: lastItem.y }
-							},
-							type: 'img',
-							index: lastIndex
-						}
-						this.raf(obj);
-					}
-					lastItem.element.style.cursor = 'zoom-in';
-				}
-				const item = this.data.previewList[this.data.index];
-				this.setCurrentImg(item.x, item.y, item.width, item.height, 1, '');
-			}
+			this.handleLastItem(lastIndex);
 		}
-		let x = this.data.windowWidth * this.data.index * -1;
-		if (this.options.useTransition) {
-			this.wrap.style.transition = 'transform ' + this.options.duration + 'ms';
-			this.wrap.style.transform = 'translate3d(' + x + 'px, 0, 0)';
-		} else {
-			const obj = {
-				wrap: {
-					x: { from: this.data.wrapTranslateX, to: x }
-				},
-				type: 'wrap'
-			}
-			this.raf(obj);
-		}
-		this.data.wrapTranslateX = x;
-		this.counter.innerHTML = (this.data.index + 1) + ' / ' + this.data.previewList.length;
+		this.handleSwipe();
 	},
 	/**
 	 * img移动结束
@@ -1018,40 +973,78 @@ const nonameGallery = {
 	 * @param {string} type 
 	 */
 	handleSwitch: function (type) {
-		let isChange = false;
+		const lastIndex = this.data.index;
 		if (type === 'prev') {
 			if (this.data.index > 0) {
 				this.data.index--;
-				isChange = true;
 			}
 		} else {
 			if (this.data.index < this.data.previewList.length - 1) {
 				this.data.index++;
-				isChange = true;
 			}
 		}
-		if (isChange) {
-			let x = this.data.windowWidth * this.data.index * -1;
-			if (this.options.useTransition) {
-				this.wrap.style.transition = 'transform ' + this.options.duration + 'ms';
-				this.wrap.style.transform = 'translate3d(' + x + 'px, 0, 0)';
-			} else {
-				const obj = {
-					wrap: {
-						x: {
-							from: this.data.wrapTranslateX,
-							to: x
-						}
-					},
-					type: 'wrap'
+		this.handleLastItem(lastIndex);
+		if (lastIndex !== this.data.index) {
+			this.handleSwipe();
+		}
+	},
+	/**
+	 * 处理上一张图片
+	 * @param {number} lastIndex
+	 */
+	handleLastItem: function (lastIndex) {
+		const lastItem = this.data.previewList[lastIndex];
+		const lastImg = {
+			width: this.data.currentImg.width,
+			height: this.data.currentImg.height,
+			x: this.data.currentImg.x,
+			y: this.data.currentImg.y,
+			scale: this.data.currentImg.scale,
+			status: this.data.currentImg.status
+		};
+		if (lastIndex !== this.data.index) {
+			if (lastImg.width > lastItem.width || lastImg.height > lastItem.height) {
+				if (this.options.useTransition) {
+					lastItem.element.style.transition = 'transform ' + this.options.duration + 'ms, opacity ' + this.options.duration + 'ms';
+					lastItem.element.style.transform = 'translate3d(' + lastItem.x + 'px, ' + lastItem.y + 'px, 0) scale(1)';
+				} else {
+					const obj = {
+						img: {
+							width: { from: lastImg.width, to: lastItem.width },
+							height: { from: lastImg.height, to: lastItem.height },
+							x: { from: lastImg.x, to: lastItem.x },
+							y: { from: lastImg.y, to: lastItem.y }
+						},
+						type: 'img',
+						index: lastIndex
+					}
+					this.raf(obj);
 				}
-				this.raf(obj);
+				lastItem.element.style.cursor = 'zoom-in';
 			}
-			this.data.wrapTranslateX = x;
-			this.counter.innerHTML = (this.data.index + 1) + ' / ' + this.data.previewList.length;
 			const item = this.data.previewList[this.data.index];
 			this.setCurrentImg(item.x, item.y, item.width, item.height, 1, '');
 		}
+	},
+	/** 
+	 * 处理滑动
+	*/
+	handleSwipe: function () {
+		let x = this.data.windowWidth * this.data.index * -1;
+		if (this.options.useTransition) {
+			this.wrap.style.transition = 'transform ' + this.options.duration + 'ms';
+			this.wrap.style.transform = 'translate3d(' + x + 'px, 0, 0)';
+		} else {
+			const obj = {
+				wrap: {
+					x: { from: this.data.wrapTranslateX, to: x }
+				},
+				type: 'wrap'
+			}
+			this.raf(obj);
+		}
+		this.data.wrapTranslateX = x;
+		this.counter.innerHTML = (this.data.index + 1) + ' / ' + this.data.previewList.length;
 	},
 	/**
 	 * 保留n位小数
