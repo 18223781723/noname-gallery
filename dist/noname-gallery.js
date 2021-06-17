@@ -630,8 +630,8 @@
 		return Math.hypot(x, y);
 	}
 	NonameGallery.prototype.handleWrapMove = function () {
-		if ((this.step.x > 0 && this.wrapTranslateX > 0) ||
-			(this.step.x < 0 && this.wrapTranslateX < (this.previewList.length - 1) * this.windowWidth * - 1)) {
+		if (this.wrapTranslateX > 0 ||
+			this.wrapTranslateX < - 1 * (this.previewList.length - 1) * this.windowWidth) {
 			this.wrapTranslateX += this.step.x * 0.3;
 		} else {
 			this.wrapTranslateX += this.step.x;

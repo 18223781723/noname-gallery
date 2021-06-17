@@ -816,8 +816,8 @@ const nonameGallery = {
 	 */
 	handleWrapMove: function () {
 		// 左右边界滑动时，增加阻力
-		if ((this.data.step.x > 0 && this.data.wrapTranslateX > 0) ||
-			(this.data.step.x < 0 && this.data.wrapTranslateX < (this.data.previewList.length - 1) * this.data.windowWidth * - 1)) {
+		if (this.data.wrapTranslateX > 0 ||
+			this.data.wrapTranslateX < -1 * (this.data.previewList.length - 1) * this.data.windowWidth) {
 			this.data.wrapTranslateX += this.data.step.x * 0.3;
 		} else {
 			// 双指交替滑动时，只能浏览上一个，下一个
