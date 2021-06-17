@@ -1,12 +1,12 @@
 # noname-gallery
-JavaScript image gallery, easy to use, no dependencies
+JavaScript image gallery, easy to use, no dependencies.
 
 Demo: https://nonamegallery.codeman.top
 
 ![二维码](https://nonamegallery.codeman.top/src/images/qrcode.png)
 
 
-# Getting started
+# Getting Started
 In a browser:
 ```javascript
 <link rel="stylesheet" type="text/css" media="screen" href="path/noname-gallery.css">
