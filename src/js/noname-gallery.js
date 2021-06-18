@@ -887,7 +887,7 @@ const nonameGallery = {
 	 * wrap移动结束
 	 */
 	handleWrapMoveEnd: function () {
-		const MIN_SWIPE_DISTANCE = Math.round(this.data.windowWidth * 0.15);
+		const MIN_SWIPE_DISTANCE = Math.round(this.data.windowWidth * 0.1);
 		const lastIndex = this.data.index;
 		if (Math.abs(this.data.distance.x) > MIN_SWIPE_DISTANCE) {
 			if (this.data.distance.x > 0) {

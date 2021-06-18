@@ -693,7 +693,7 @@
 		}
 	}
 	NonameGallery.prototype.handleWrapMoveEnd = function () {
-		var MIN_SWIPE_DISTANCE = Math.round(this.windowWidth * 0.15);
+		var MIN_SWIPE_DISTANCE = Math.round(this.windowWidth * 0.1);
 		var lastIndex = this.index;
 
 		if (Math.abs(this.distance.x) > MIN_SWIPE_DISTANCE) {
