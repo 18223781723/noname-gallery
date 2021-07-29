@@ -5,7 +5,7 @@
 	left: 0;
 	right: 0;
 	bottom: 0;
-	z-index: 1100;
+	z-index: 1000;
 	overflow: hidden;
 	user-select: none;
 	touch-action: none;
@@ -50,4 +50,5 @@
 	display: block;
 	transform-origin: left top;
 	object-fit: cover;
+	-webkit-user-drag: none;
 }

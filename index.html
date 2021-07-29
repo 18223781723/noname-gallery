@@ -113,7 +113,7 @@
             </li>
             <li>
                 <span>duration</span>
-                <input type="range" value="300" step="10" min="300" max="500" id="duration" style="margin: 0 5px;">
+                <input type="range" value="300" step="10" min="300" max="5000" id="duration" style="margin: 0 5px;">
                 <span>300ms</span>
             </li>
         </ul>
@@ -156,7 +156,7 @@
         <p>PC端操作基本类似，支持单击关闭画廊，点击图片缩放，增加键盘控制，ESC关闭画廊，方向键切换图片。</p>
     </div>
 
-    <script src="src/js/noname-gallery.js"></script>
+    <!-- <script src="src/js/noname-gallery.js"></script> -->
     <script src="dist/noname-gallery.min.js"></script>
     <script>
         // 初始化变量
@@ -190,7 +190,6 @@
                 // 初始化gallery
                 const gallery = new NonameGallery(options);
                 gallery.init();
-                // nonameGallery.init(options);
             }
         });
     </script>
