@@ -26,18 +26,18 @@ In a browser:
 </div>
 
 <script>
-    var imgBox = document.querySelector('#imgBox);
-    var imgList = document.querySelectorAll('#imgBox img');
+    const imgBox = document.querySelector('#imgBox);
+    const imgList = document.querySelectorAll('#imgBox img');
 
-    // event delegation
+    // event delegate
     imgBox.addEventListener('click', function (e) {
         if (e.target.tagName === 'IMG') {
-            var options = {
+            const options = {
                 list: [].slice.call(imgList, 0),
                 index: [].indexOf.call(e.target.parentNode.children, e.target)
             }
             // init and open gallery
-            var gallery = new NonameGallery(options);
+            const gallery = new NonameGallery(options);
             gallery.init();
         }
     });
