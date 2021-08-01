@@ -30,7 +30,7 @@ function NonameGallery(options) {
 	this.diff = { x: 0, y: 0 }; // 相对于上一次移动差值
 	this.distance = { x: 0, y: 0 }; // 移动距离
 	this.lastDistance = { x: 0, y: 0 }; // 双指滑动时记录上一次移动距离
-	this.lastPoint = { x: 0, y: 0 }
+	this.lastPoint = { x: 0, y: 0 }; // 上一次点击坐标，用于判断双击距离是否大于30
 	this.lastMove = { x: 0, y: 0 }; // 上一次移动坐标
 	this.lastCenter = { x: 0, y: 0 }; // 上一次双指中心位置
 	this.lastScale = 1; // 上一次双指距离比例
@@ -38,9 +38,10 @@ function NonameGallery(options) {
 	this.dragDirection = ''; // 拖拽方向 v(vertical) h(horizontal)
 	this.dragTarget = ''; // 拖拽目标 wrap img
 	this.isPointerdown = false; // 按下标识
-	this.tapTimeout = null; // 单击延时器
-	this.lastMoveTime = null; // 鼠标松开距离最后一次移动小于200ms执行惯性滑动
-	this.lastTwoFingersTime = null; // 距离上一次双指触摸的时间
+	this.tapTimeout = null; // 单击延时器 250ms 判断双击
+	this.pointerdownTime = null; // pointerdown time
+	this.pointermoveTime = null; // 鼠标松开距离最后一次移动小于200ms执行惯性滑动
+	this.pinchTime = null; // 距离上一次双指缩放的时间
 	this.isAnimating = false; // 是否正在执行缩放动画
 	this.rafId = null; // requestAnimationFrame id 用于停止惯性滑动动画
 }
@@ -53,7 +54,7 @@ NonameGallery.prototype.defaults = {
 	fadeInOut: true, // 淡入淡出
 	useTransition: true, // 使用transition实现动画或requestAnimationFrame
 	verticalZoom: true, // 垂直滑动缩放图片
-	openKeyboard: true, // 开启键盘 esc关闭，方向键切换图片
+	openKeyboard: false, // 开启键盘 esc关闭，方向键切换图片
 	zoomToScreenCenter: false, // 将放大区域移动到屏幕中心显示
 	duration: 300, // 动画持续时间
 	minScale: 1.5 // 最小放大倍数
@@ -81,7 +82,7 @@ NonameGallery.prototype.init = function () {
 	this.setProperties();
 	// 打开画廊
 	this.open();
-	// 动画执行完毕再绑定事件
+	// 开始动画执行完毕再绑定事件
 	setTimeout(() => {
 		this.bindEventListener();
 	}, this.options.duration);
@@ -248,10 +249,8 @@ NonameGallery.prototype.close = function () {
 		if (this.options.fadeInOut) {
 			item.element.style.opacity = '0';
 		}
-		item.element.style.transition = 'transform ' + this.options.duration + 'ms ease-out, opacity '
-			+ this.options.duration + 'ms ease-out';
-		item.element.style.transform = 'translate3d(' + item.thumbnail.x + 'px, ' + item.thumbnail.y
-			+ 'px, 0) scale(' + item.thumbnail.scaleX + ', ' + item.thumbnail.scaleY + ')';
+		item.element.style.transition = 'transform ' + this.options.duration + 'ms ease-out, opacity ' + this.options.duration + 'ms ease-out';
+		item.element.style.transform = 'translate3d(' + item.thumbnail.x + 'px, ' + item.thumbnail.y + 'px, 0) scale(' + item.thumbnail.scaleX + ', ' + item.thumbnail.scaleY + ')';
 		this.bg.style.transition = 'opacity ' + this.options.duration + 'ms ease-out';
 		this.bg.style.opacity = '0';
 	} else {
@@ -279,6 +278,7 @@ NonameGallery.prototype.close = function () {
 	setTimeout(() => {
 		this.container.remove();
 	}, this.options.duration);
+	this.tapCount = 0;
 }
 /**
  * 绑定事件
@@ -311,38 +311,44 @@ NonameGallery.prototype.unbindEventListener = function () {
 	this.container.removeEventListener('pointercancel', this.handlePointercancel);
 	window.removeEventListener('resize', this.handleResize);
 	window.removeEventListener('orientationchange', this.handleResize);
-	if (this.options.openKeyboard) window.removeEventListener('keydown', this.handleKeydown);
+	if (this.options.openKeyboard) {
+		window.removeEventListener('keydown', this.handleKeydown);
+	}
 }
 /**
  * 处理pointerdown
  * @param {PointerEvent} e 
  */
 NonameGallery.prototype.handlePointerdown = function (e) {
-	console.log(e.type);
 	// 只响应鼠标左键
-	if (e.pointerType === 'mouse' && e.button !== 0 || this.isAnimating) return;
-	this.container.setPointerCapture(e.pointerId);
-	this.isPointerdown = true;
-	window.cancelAnimationFrame(this.rafId);
+	if (e.pointerType === 'mouse' && e.button !== 0 || this.isAnimating) {
+		return;
+	}
 	this.pointers.push(e);
 	this.point = { x: this.pointers[0].clientX, y: this.pointers[0].clientY };
 	if (this.pointers.length === 1) {
+		this.container.setPointerCapture(e.pointerId);
+		this.isPointerdown = true;
 		this.tapCount++;
 		this.dragDirection = '';
 		this.dragTarget = '';
 		this.distance = { x: 0, y: 0 };
 		this.lastDistance = { x: 0, y: 0 };
+		this.pointerdownTime = Date.now();
+		this.pinchTime = null;
 		this.lastMove = { x: this.pointers[0].clientX, y: this.pointers[0].clientY };
-		this.lastTwoFingersTime = null;
 		// 双击两点距离不超过30
 		if (this.tapCount > 1 && (Math.abs(this.point.x - this.lastPoint.x) > 30 || Math.abs(this.point.y - this.lastPoint.y) > 30)) {
 			this.tapCount = 1;
 		}
 		clearTimeout(this.tapTimeout);
+		window.cancelAnimationFrame(this.rafId);
 		this.lastPoint = { x: this.pointers[0].clientX, y: this.pointers[0].clientY };
 	} else if (this.pointers.length === 2) {
 		this.point2 = { x: this.pointers[1].clientX, y: this.pointers[1].clientY };
-		if (this.dragTarget === '') this.dragTarget = 'img';
+		if (this.dragTarget === '') {
+			this.dragTarget = 'img';
+		}
 		this.tapCount = 0;
 		this.lastScale = 1;
 		this.lastCenter = this.getCenter(this.point, this.point2);
@@ -354,8 +360,9 @@ NonameGallery.prototype.handlePointerdown = function (e) {
  * @param {PointerEvent} e
  */
 NonameGallery.prototype.handlePointermove = function (e) {
-	console.log(e.type);
-	if (!this.isPointerdown) return;
+	if (!this.isPointerdown) {
+		return;
+	}
 	this.handlePointers(e, 'update');
 	const current = { x: e.clientX, y: e.clientY };
 	if (this.pointers.length === 1) {
@@ -364,22 +371,23 @@ NonameGallery.prototype.handlePointermove = function (e) {
 			this.diff = { x: current.x - this.lastMove.x, y: current.y - this.lastMove.y };
 			this.distance = { x: current.x - this.point.x + this.lastDistance.x, y: current.y - this.point.y + this.lastDistance.y };
 			this.lastMove = { x: current.x, y: current.y };
-			this.lastMoveTime = Date.now();
+			this.pointermoveTime = Date.now();
+			// 偏移量大于10才判断dragDirection和dragTarget
 			if (this.dragDirection === '' && this.dragTarget === '' && (Math.abs(this.distance.x) > 10 || Math.abs(this.distance.y) > 10)) {
 				this.tapCount = 0;
-				// 获取拖拽方向
 				this.getDragDirection();
-				// 获取拖拽目标
 				this.getDragTarget();
 			}
 			if (this.dragTarget === 'wrap') {
-				this.handleWrapMove();
+				this.handleWrapPointermove();
 			} else if (this.dragTarget === 'img') {
-				this.handleImgMove();
+				this.handleImgPointermove();
 			}
 		}
 	} else if (this.pointers.length === 2) {
-		if (this.dragTarget === 'img' && this.currentImg.status !== 'verticalToClose') this.handlePinch(e);
+		if (this.dragTarget === 'img' && this.currentImg.status !== 'verticalToClose') {
+			this.handlePinch(e);
+		}
 	}
 	e.preventDefault();
 }
@@ -388,20 +396,20 @@ NonameGallery.prototype.handlePointermove = function (e) {
  * @param {PointerEvent} e
  */
 NonameGallery.prototype.handlePointerup = function (e) {
-	console.log(e.type);
-	if (!this.isPointerdown) return;
+	if (!this.isPointerdown) {
+		return;
+	}
 	this.handlePointers(e, 'delete');
 	if (this.pointers.length === 0) {
 		this.isPointerdown = false;
 		if (this.tapCount === 0) {
 			if (this.dragTarget === 'wrap') {
-				this.handleWrapMoveEnd();
+				this.handleWrapPointerup();
 			} else if (this.dragTarget === 'img') {
-				this.handleImgMoveEnd();
+				this.handleImgPointerup();
 			}
 		} else if (this.tapCount === 1) {
 			if (e.pointerType === 'mouse') {
-				this.tapCount = 0;
 				// 由于调用过setPointerCapture方法，导致无法使用e.target来判断触发事件的元素，所以只能根据点击位置来判断
 				if (e.clientX >= this.currentImg.x && e.clientX <= this.currentImg.x + this.currentImg.width &&
 					e.clientY >= this.currentImg.y && e.clientY <= this.currentImg.y + this.currentImg.height) {
@@ -410,13 +418,16 @@ NonameGallery.prototype.handlePointerup = function (e) {
 					this.close();
 				}
 			} else {
-				this.tapTimeout = setTimeout(() => {
+				// 触发移动端长按保存图片后不关闭画廊
+				if (Date.now() - this.pointerdownTime < 500) {
+					this.tapTimeout = setTimeout(() => {
+						this.close();
+					}, 250);
+				} else {
 					this.tapCount = 0;
-					this.close();
-				}, 250);
+				}
 			}
 		} else if (this.tapCount > 1) {
-			this.tapCount = 0;
 			this.handleZoom({ x: e.clientX, y: e.clientY });
 		}
 	} else if (this.pointers.length === 1) {
@@ -429,7 +440,6 @@ NonameGallery.prototype.handlePointerup = function (e) {
  * @param {PointerEvent} e
  */
 NonameGallery.prototype.handlePointercancel = function (e) {
-	console.log(e.type);
 	this.tapCount = 0;
 	this.isPointerdown = false;
 	this.pointers.length = 0;
@@ -437,7 +447,7 @@ NonameGallery.prototype.handlePointercancel = function (e) {
 /**
  * 更新或删除指针
  * @param {PointerEvent} e
- * @param {string} type
+ * @param {string} type update delete
  */
 NonameGallery.prototype.handlePointers = function (e, type) {
 	for (let i = 0; i < this.pointers.length; i++) {
@@ -491,20 +501,22 @@ NonameGallery.prototype.handleResize = function () {
  * @param {KeyboardEvent} e
  */
 NonameGallery.prototype.handleKeydown = function (e) {
+	const lastIndex = this.index;
 	if (e.key === 'Escape') {
 		this.close();
 	} else if (['ArrowLeft', 'ArrowUp'].includes(e.key)) {
-		this.handleSwitch('prev');
+		if (this.index > 0) this.index--;
 	} else if (['ArrowRight', 'ArrowDown'].includes(e.key)) {
-		this.handleSwitch('next');
+		if (this.index < this.previewList.length - 1) this.index++;
 	}
+	if (lastIndex !== this.index) this.handleWrapSwipe(lastIndex);
 }
 /**
  * 处理缩放
  */
 NonameGallery.prototype.handleZoom = function (point) {
 	const item = this.previewList[this.index];
-	if (this.currentImg.width > item.width || this.currentImg.height > item.height) {
+	if (this.currentImg.scale > 1) {
 		if (this.options.useTransition) {
 			item.element.style.transition = 'transform ' + this.options.duration + 'ms ease-out, opacity ' + this.options.duration + 'ms ease-out';
 			item.element.style.transform = 'translate3d(' + item.x + 'px,' + item.y + 'px, 0) scale(1)';
@@ -528,57 +540,58 @@ NonameGallery.prototype.handleZoom = function (point) {
 	} else {
 		const halfWindowWidth = this.windowWidth / 2;
 		const halfWindowHeight = this.windowHeight / 2;
-		const ix = this.decimal((point.x - item.x) * item.maxScale, 2);
-		const iy = this.decimal((point.y - item.y) * item.maxScale, 2);
-		let x, y;
+		const left = this.decimal((point.x - item.x) * item.maxScale, 2);
+		const top = this.decimal((point.y - item.y) * item.maxScale, 2);
+		let xTo, yTo;
 		if (item.maxWidth > this.windowWidth) {
 			if (this.options.zoomToScreenCenter) {
-				x = halfWindowWidth - ix;
+				xTo = halfWindowWidth - left;
 			} else {
-				x = point.x - ix;
+				xTo = point.x - left;
 			}
-			if (x > 0) {
-				x = 0;
-			} else if (x < this.windowWidth - item.maxWidth) {
-				x = this.windowWidth - item.maxWidth;
+			if (xTo > 0) {
+				xTo = 0;
+			} else if (xTo < this.windowWidth - item.maxWidth) {
+				xTo = this.windowWidth - item.maxWidth;
 			}
 		} else {
-			x = (this.windowWidth - item.maxWidth) / 2;
+			xTo = (this.windowWidth - item.maxWidth) / 2;
 		}
-		x = this.decimal(x, 2);
+		xTo = this.decimal(xTo, 2);
 		if (item.maxHeight > this.windowHeight) {
 			if (this.options.zoomToScreenCenter) {
-				y = halfWindowHeight - iy;
+				yTo = halfWindowHeight - top;
 			} else {
-				y = point.y - iy;
+				yTo = point.y - top;
 			}
-			if (y > 0) {
-				y = 0;
-			} else if (y < this.windowHeight - item.maxHeight) {
-				y = this.windowHeight - item.maxHeight;
+			if (yTo > 0) {
+				yTo = 0;
+			} else if (yTo < this.windowHeight - item.maxHeight) {
+				yTo = this.windowHeight - item.maxHeight;
 			}
 		} else {
-			y = (this.windowHeight - item.maxHeight) / 2;
+			yTo = (this.windowHeight - item.maxHeight) / 2;
 		}
-		y = this.decimal(y, 2);
+		yTo = this.decimal(yTo, 2);
 		if (this.options.useTransition) {
 			item.element.style.transition = 'transform ' + this.options.duration + 'ms ease-out, opacity ' + this.options.duration + 'ms ease-out';
-			item.element.style.transform = 'translate3d(' + x + 'px,' + y + 'px, 0) scale(' + item.maxScale + ')';
+			item.element.style.transform = 'translate3d(' + xTo + 'px,' + yTo + 'px, 0) scale(' + item.maxScale + ')';
 		} else {
 			this.raf((time) => {
 				const width = this.decimal(this.easeOut(item.width, item.maxWidth, time, this.options.duration), 2);
 				const height = this.decimal(this.easeOut(item.height, item.maxHeight, time, this.options.duration), 2);
-				const x2 = this.decimal(this.easeOut(item.x, x, time, this.options.duration), 2);
-				const y2 = this.decimal(this.easeOut(item.y, y, time, this.options.duration), 2);
+				const x = this.decimal(this.easeOut(item.x, xTo, time, this.options.duration), 2);
+				const y = this.decimal(this.easeOut(item.y, yTo, time, this.options.duration), 2);
 				item.element.style.width = width + 'px';
 				item.element.style.height = height + 'px';
-				item.element.style.transform = 'translate3d(' + x2 + 'px, ' + y2 + 'px, 0)';
+				item.element.style.transform = 'translate3d(' + x + 'px, ' + y + 'px, 0)';
 			}, this.options.duration);
 		}
 		item.element.style.cursor = 'zoom-out';
-		this.setCurrentImg(x, y, item.maxWidth, item.maxHeight, item.maxScale, '');
+		this.setCurrentImg(xTo, yTo, item.maxWidth, item.maxHeight, item.maxScale, '');
 	}
 	this.setIsAnimating();
+	this.tapCount = 0;
 }
 /**
  * 处理双指缩放
@@ -590,7 +603,7 @@ NonameGallery.prototype.handlePinch = function () {
 	const current2 = { x: this.pointers[1].clientX, y: this.pointers[1].clientY };
 	const scale = this.getDistance(current, current2) / this.getDistance(this.point, this.point2);
 	let ratio = scale / this.lastScale;
-	this.lastTwoFingersTime = Date.now();
+	this.pinchTime = Date.now();
 	this.currentImg.scale = this.decimal(this.currentImg.scale * ratio, 5);
 	this.currentImg.width = this.decimal(this.currentImg.width * ratio, 2);
 	this.currentImg.height = this.decimal(this.currentImg.height * ratio, 2);
@@ -608,6 +621,7 @@ NonameGallery.prototype.handlePinch = function () {
 	this.currentImg.status = this.currentImg.scale < 1 ? 'shrink' : '';
 	this.lastScale = scale;
 	const center = this.getCenter(current, current2);
+	// 计算偏移量
 	this.currentImg.x -= (ratio - 1) * (center.x - this.currentImg.x) - center.x + this.lastCenter.x;
 	this.currentImg.y -= (ratio - 1) * (center.y - this.currentImg.y) - center.y + this.lastCenter.y;;
 	this.lastCenter = center;
@@ -646,17 +660,17 @@ NonameGallery.prototype.handleBoundary = function () {
 }
 /**
  * 获取图片缩放尺寸
- * @param {number} naturalWidth 
- * @param {number} naturalHeight 
- * @param {number} maxWidth 
- * @param {number} maxHeight 
+ * @param {number} naturalWidth 图片自然宽度
+ * @param {number} naturalHeight 图片自然高度
+ * @param {number} maxWidth 图片显示最大宽度
+ * @param {number} maxHeight 图片显示最大高度
  * @returns 
  */
 NonameGallery.prototype.getImgSize = function (naturalWidth, naturalHeight, maxWidth, maxHeight) {
 	const imgRatio = naturalWidth / naturalHeight;
 	const maxRatio = maxWidth / maxHeight;
 	let width, height;
-	// 如果图片实际宽高比例 >= 屏幕宽高比例
+	// 如果图片自然宽高比例 >= 显示宽高比例
 	if (imgRatio >= maxRatio) {
 		if (naturalWidth > maxWidth) {
 			width = maxWidth;
@@ -723,7 +737,7 @@ NonameGallery.prototype.getDistance = function (point, point2) {
 /**
  * 处理wrap移动
  */
-NonameGallery.prototype.handleWrapMove = function () {
+NonameGallery.prototype.handleWrapPointermove = function () {
 	if (this.wrapX > 0 ||
 		this.wrapX < - 1 * (this.previewList.length - 1) * this.windowWidth) {
 		this.wrapX += this.diff.x * 0.3;
@@ -745,8 +759,9 @@ NonameGallery.prototype.handleWrapMove = function () {
 /**
  * 处理img移动
  */
-NonameGallery.prototype.handleImgMove = function () {
+NonameGallery.prototype.handleImgPointermove = function () {
 	const item = this.previewList[this.index];
+	// 如果图片当前宽高大于视口宽高，拖拽查看图片
 	if (this.currentImg.width > this.windowWidth || this.currentImg.height > this.windowHeight) {
 		this.currentImg.x += this.diff.x;
 		this.currentImg.y += this.diff.y;
@@ -754,12 +769,12 @@ NonameGallery.prototype.handleImgMove = function () {
 		this.currentImg.status = 'inertia';
 		if (this.options.useTransition) {
 			item.element.style.transition = 'none';
-			item.element.style.transform = 'translate3d(' + this.currentImg.x + 'px, ' + this.currentImg.y
-				+ 'px, 0) scale(' + this.currentImg.scale + ')';
+			item.element.style.transform = 'translate3d(' + this.currentImg.x + 'px, ' + this.currentImg.y + 'px, 0) scale(' + this.currentImg.scale + ')';
 		} else {
 			item.element.style.transform = 'translate3d(' + this.currentImg.x + 'px, ' + this.currentImg.y + 'px, 0)';
 		}
 	} else {
+		// 如果垂直拖拽图片且图片未被放大（某些图片尺寸放到最大也没有超出视口宽高）
 		if (this.dragDirection === 'v' && this.currentImg.width <= item.width && this.currentImg.height <= item.height) {
 			this.currentImg.status = 'verticalToClose';
 			this.bgOpacity = this.decimal(1 - Math.abs(this.distance.y) / (this.windowHeight / 1.2), 5);
@@ -781,8 +796,7 @@ NonameGallery.prototype.handleImgMove = function () {
 			if (this.options.useTransition) {
 				this.bg.style.transition = 'none';
 				item.element.style.transition = 'none';
-				item.element.style.transform = 'translate3d(' + this.currentImg.x + 'px, ' + this.currentImg.y
-					+ 'px , 0) scale(' + this.currentImg.scale + ')';
+				item.element.style.transform = 'translate3d(' + this.currentImg.x + 'px, ' + this.currentImg.y + 'px , 0) scale(' + this.currentImg.scale + ')';
 			} else {
 				item.element.style.width = this.currentImg.width + 'px';
 				item.element.style.height = this.currentImg.height + 'px';
@@ -794,7 +808,7 @@ NonameGallery.prototype.handleImgMove = function () {
 /**
  * 处理wrap移动结束
  */
-NonameGallery.prototype.handleWrapMoveEnd = function () {
+NonameGallery.prototype.handleWrapPointerup = function () {
 	const MIN_SWIPE_DISTANCE = Math.round(this.windowWidth * 0.1);
 	const lastIndex = this.index;
 	if (Math.abs(this.distance.x) > MIN_SWIPE_DISTANCE) {
@@ -804,16 +818,16 @@ NonameGallery.prototype.handleWrapMoveEnd = function () {
 			if (lastIndex < this.previewList.length - 1) this.index++;
 		}
 	}
-	this.handleSwipe(lastIndex);
+	this.handleWrapSwipe(lastIndex);
 }
 /**
  * 处理img移动结束
  */
-NonameGallery.prototype.handleImgMoveEnd = function () {
+NonameGallery.prototype.handleImgPointerup = function () {
 	const MIN_CLOSE_DISTANCE = Math.round(this.windowHeight * 0.15);
 	const item = this.previewList[this.index];
 	const now = Date.now();
-	if (this.currentImg.status === 'inertia' && now - this.lastMoveTime < 200 && now - this.lastTwoFingersTime > 1000) {
+	if (this.currentImg.status === 'inertia' && now - this.pointermoveTime < 200 && now - this.pinchTime > 1000) {
 		this.handleInertia();
 	} else if (this.currentImg.status === 'verticalToClose' && Math.abs(this.distance.y) >= MIN_CLOSE_DISTANCE) {
 		this.close();
@@ -852,6 +866,7 @@ NonameGallery.prototype.handleInertia = function () {
 	const item = this.previewList[this.index];
 	const xFrom = this.currentImg.x;
 	const yFrom = this.currentImg.y;
+	// 简单处理，直接用移动差值*15
 	this.currentImg.x += this.diff.x * 15;
 	this.currentImg.y += this.diff.y * 15;
 	this.handleBoundary();
@@ -860,8 +875,7 @@ NonameGallery.prototype.handleInertia = function () {
 	const duration = 300;
 	if (this.options.useTransition) {
 		item.element.style.transition = 'transform ' + duration + 'ms ease-out';
-		item.element.style.transform = 'translate3d(' + this.currentImg.x + 'px, ' + this.currentImg.y
-			+ 'px, 0) scale(' + this.currentImg.scale + ')';
+		item.element.style.transform = 'translate3d(' + this.currentImg.x + 'px, ' + this.currentImg.y + 'px, 0) scale(' + this.currentImg.scale + ')';
 	} else {
 		this.raf((time) => {
 			this.currentImg.x = this.decimal(this.easeOut(xFrom, xTo, time, duration), 2);
@@ -871,23 +885,10 @@ NonameGallery.prototype.handleInertia = function () {
 	}
 }
 /**
- * 处理键盘切换图片
- * @param {string} type 
- */
-NonameGallery.prototype.handleSwitch = function (type) {
-	const lastIndex = this.index;
-	if (type === 'prev') {
-		if (this.index > 0) this.index--;
-	} else {
-		if (this.index < this.previewList.length - 1) this.index++;
-	}
-	if (lastIndex !== this.index) this.handleSwipe(lastIndex);
-}
-/**
  * 处理wrap滑动
  * @param {number} lastIndex
  */
-NonameGallery.prototype.handleSwipe = function (lastIndex) {
+NonameGallery.prototype.handleWrapSwipe = function (lastIndex) {
 	const lastItem = this.previewList[lastIndex];
 	const lastImg = {
 		width: this.currentImg.width,
@@ -897,16 +898,16 @@ NonameGallery.prototype.handleSwipe = function (lastIndex) {
 		scale: this.currentImg.scale,
 		status: this.currentImg.status
 	};
-	const wrapX = this.windowWidth * this.index * -1;
+	const wrapXFrom = this.wrapX;
+	const wrapXTo = this.windowWidth * this.index * -1;
 	if (this.options.useTransition) {
 		if (lastIndex !== this.index) {
 			lastItem.element.style.transition = 'transform ' + this.options.duration + 'ms, opacity ' + this.options.duration + 'ms';
 			lastItem.element.style.transform = 'translate3d(' + lastItem.x + 'px, ' + lastItem.y + 'px, 0) scale(1)';
 		}
 		this.wrap.style.transition = 'transform ' + this.options.duration + 'ms ease-out';
-		this.wrap.style.transform = 'translate3d(' + wrapX + 'px, 0, 0)';
+		this.wrap.style.transform = 'translate3d(' + wrapXTo + 'px, 0, 0)';
 	} else {
-		const xFrom = this.wrapX;
 		this.raf((time) => {
 			// img
 			if (lastIndex !== this.index) {
@@ -920,8 +921,8 @@ NonameGallery.prototype.handleSwipe = function (lastIndex) {
 				item.element.style.transform = 'translate3d(' + x + 'px, ' + y + 'px, 0)';
 			}
 			// wrap
-			const x2 = this.decimal(this.easeOut(xFrom, wrapX, time, this.options.duration), 2);
-			this.wrap.style.transform = 'translate3d(' + x2 + 'px, 0, 0)';
+			const wrapX = this.decimal(this.easeOut(wrapXFrom, wrapXTo, time, this.options.duration), 2);
+			this.wrap.style.transform = 'translate3d(' + wrapX + 'px, 0, 0)';
 		}, this.options.duration);
 	}
 	if (lastIndex !== this.index) {
@@ -929,7 +930,7 @@ NonameGallery.prototype.handleSwipe = function (lastIndex) {
 		const item = this.previewList[this.index];
 		this.setCurrentImg(item.x, item.y, item.width, item.height, 1, '');
 	}
-	this.wrapX = wrapX;
+	this.wrapX = wrapXTo;
 	this.counter.innerHTML = (this.index + 1) + ' / ' + this.previewList.length;
 }
 /**
