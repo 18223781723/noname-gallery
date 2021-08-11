@@ -2,7 +2,7 @@
 	'use strict';
 	/**
 	 * 使用PointerEvent实现的图片预览插件
-	 * @param {object} options 
+	 * @param {object} options 配置项
 	 */
 	function NonameGallery(options) {
 		this.options = Object.assign({}, this.defaults, options);
@@ -27,15 +27,15 @@
 			status: '' // 当前图片状态 shrink(scale < 1) verticalToClose inertia
 		};
 		this.pointers = []; // 指针数组用于保存多个触摸点
-		this.point = { x: 0, y: 0 }; // 第一个点坐标
-		this.point2 = { x: 0, y: 0 }; // 第二个点坐标
+		this.point1 = { x: 0, y: 0 }; // 第一个触摸点
+		this.point2 = { x: 0, y: 0 }; // 第二个触摸点
 		this.diff = { x: 0, y: 0 }; // 相对于上一次移动差值
 		this.distance = { x: 0, y: 0 }; // 移动距离
 		this.lastDistance = { x: 0, y: 0 }; // 双指滑动时记录上一次移动距离
-		this.lastPoint = { x: 0, y: 0 }; // 上一次点击坐标，用于判断双击距离是否大于30
+		this.lastPoint1 = { x: 0, y: 0 }; // 上一次第一个触摸点位置，用于判断双击距离是否大于30
+		this.lastPoint2 = { x: 0, y: 0 }; // 上一次第二个触摸点位置
 		this.lastMove = { x: 0, y: 0 }; // 上一次移动坐标
 		this.lastCenter = { x: 0, y: 0 }; // 上一次双指中心位置
-		this.lastScale = 1; // 上一次双指距离比例
 		this.tapCount = 0; // 点击次数 1 = 单击 大于1 = 双击
 		this.dragDirection = ''; // 拖拽方向 v(vertical) h(horizontal)
 		this.dragTarget = ''; // 拖拽目标 wrap img
@@ -44,7 +44,7 @@
 		this.pointerdownTime = null; // pointerdown time
 		this.pointermoveTime = null; // 鼠标松开距离最后一次移动小于200ms执行惯性滑动
 		this.pinchTime = null; // 距离上一次双指缩放的时间
-		this.isAnimating = false; // 是否正在执行缩放动画
+		this.isAnimating = false; // 是否正在执行动画
 		this.rafId = null; // requestAnimationFrame id 用于停止惯性滑动动画
 	}
 	/**
@@ -291,7 +291,6 @@
 		this.handlePointerup = this.handlePointerup.bind(this);
 		this.handlePointercancel = this.handlePointercancel.bind(this);
 		this.handleResize = this.handleResize.bind(this);
-
 		this.container.addEventListener('pointerdown', this.handlePointerdown);
 		this.container.addEventListener('pointermove', this.handlePointermove);
 		this.container.addEventListener('pointerup', this.handlePointerup);
@@ -327,7 +326,7 @@
 			return;
 		}
 		this.pointers.push(e);
-		this.point = { x: this.pointers[0].clientX, y: this.pointers[0].clientY };
+		this.point1 = { x: this.pointers[0].clientX, y: this.pointers[0].clientY };
 		if (this.pointers.length === 1) {
 			this.container.setPointerCapture(e.pointerId);
 			this.isPointerdown = true;
@@ -340,22 +339,24 @@
 			this.pinchTime = null;
 			this.lastMove = { x: this.pointers[0].clientX, y: this.pointers[0].clientY };
 			// 双击两点距离不超过30
-			if (this.tapCount > 1 && (Math.abs(this.point.x - this.lastPoint.x) > 30 || Math.abs(this.point.y - this.lastPoint.y) > 30)) {
+			if (this.tapCount > 1 && (Math.abs(this.point1.x - this.lastPoint1.x) > 30 || Math.abs(this.point1.y - this.lastPoint1.y) > 30)) {
 				this.tapCount = 1;
 			}
+			clearTimeout(this.lastDragTargetTimeout);
 			clearTimeout(this.tapTimeout);
 			window.cancelAnimationFrame(this.rafId);
-			this.lastPoint = { x: this.pointers[0].clientX, y: this.pointers[0].clientY };
+
 		} else if (this.pointers.length === 2) {
 			this.point2 = { x: this.pointers[1].clientX, y: this.pointers[1].clientY };
 			if (this.dragTarget === '') {
 				this.dragTarget = 'img';
 			}
 			this.tapCount = 0;
-			this.lastScale = 1;
-			this.lastCenter = this.getCenter(this.point, this.point2);
+			this.lastCenter = this.getCenter(this.point1, this.point2);
 			this.lastDistance = { x: this.distance.x, y: this.distance.y };
+			this.lastPoint2 = { x: this.pointers[1].clientX, y: this.pointers[1].clientY };
 		}
+		this.lastPoint1 = { x: this.pointers[0].clientX, y: this.pointers[0].clientY };
 	}
 	/**
 	 * 处理pointermove
@@ -366,13 +367,13 @@
 			return;
 		}
 		this.handlePointers(e, 'update');
-		const current = { x: e.clientX, y: e.clientY };
+		const current1 = { x: this.pointers[0].clientX, y: this.pointers[0].clientY };
 		if (this.pointers.length === 1) {
 			// 双指缩小后，离开一根手指，另一根手指继续移动
 			if (this.currentImg.status !== 'shrink') {
-				this.diff = { x: current.x - this.lastMove.x, y: current.y - this.lastMove.y };
-				this.distance = { x: current.x - this.point.x + this.lastDistance.x, y: current.y - this.point.y + this.lastDistance.y };
-				this.lastMove = { x: current.x, y: current.y };
+				this.diff = { x: current1.x - this.lastMove.x, y: current1.y - this.lastMove.y };
+				this.distance = { x: current1.x - this.point1.x + this.lastDistance.x, y: current1.y - this.point1.y + this.lastDistance.y };
+				this.lastMove = { x: current1.x, y: current1.y };
 				this.pointermoveTime = Date.now();
 				// 偏移量大于10才判断dragDirection和dragTarget
 				if (this.dragDirection === '' && this.dragTarget === '' && (Math.abs(this.distance.x) > 10 || Math.abs(this.distance.y) > 10)) {
@@ -387,9 +388,12 @@
 				}
 			}
 		} else if (this.pointers.length === 2) {
+			const current2 = { x: this.pointers[1].clientX, y: this.pointers[1].clientY };
 			if (this.dragTarget === 'img' && this.currentImg.status !== 'verticalToClose') {
-				this.handlePinch(e);
+				this.handlePinch(current1, current2);
 			}
+			this.lastPoint1 = { x: current1.x, y: current1.y };
+			this.lastPoint2 = { x: current2.x, y: current2.y };
 		}
 		e.preventDefault();
 	}
@@ -433,7 +437,7 @@
 				this.handleZoom({ x: e.clientX, y: e.clientY });
 			}
 		} else if (this.pointers.length === 1) {
-			this.point = { x: this.pointers[0].clientX, y: this.pointers[0].clientY };
+			this.point1 = { x: this.pointers[0].clientX, y: this.pointers[0].clientY };
 			this.lastMove = { x: this.pointers[0].clientX, y: this.pointers[0].clientY };
 		}
 	}
@@ -597,14 +601,13 @@
 	}
 	/**
 	 * 处理双指缩放
+	 * @param {object} a 第一个点的位置
+	 * @param {object} b 第二个点的位置
 	 */
-	NonameGallery.prototype.handlePinch = function () {
+	NonameGallery.prototype.handlePinch = function (a, b) {
 		const MIN_SCALE = 0.7;
 		const item = this.previewList[this.index];
-		const current = { x: this.pointers[0].clientX, y: this.pointers[0].clientY };
-		const current2 = { x: this.pointers[1].clientX, y: this.pointers[1].clientY };
-		const scale = this.getDistance(current, current2) / this.getDistance(this.point, this.point2);
-		let ratio = scale / this.lastScale;
+		let ratio = this.getDistance(a, b) / this.getDistance(this.lastPoint1, this.lastPoint2);
 		this.pinchTime = Date.now();
 		this.currentImg.scale = this.decimal(this.currentImg.scale * ratio, 5);
 		this.currentImg.width = this.decimal(this.currentImg.width * ratio, 2);
@@ -621,11 +624,10 @@
 			ratio = 1;
 		}
 		this.currentImg.status = this.currentImg.scale < 1 ? 'shrink' : '';
-		this.lastScale = scale;
-		const center = this.getCenter(current, current2);
+		const center = this.getCenter(a, b);
 		// 计算偏移量
 		this.currentImg.x -= (ratio - 1) * (center.x - this.currentImg.x) - center.x + this.lastCenter.x;
-		this.currentImg.y -= (ratio - 1) * (center.y - this.currentImg.y) - center.y + this.lastCenter.y;;
+		this.currentImg.y -= (ratio - 1) * (center.y - this.currentImg.y) - center.y + this.lastCenter.y;
 		this.lastCenter = center;
 		this.handleBoundary();
 		if (this.options.useTransition) {
@@ -706,20 +708,20 @@
 	 * 获取拖拽目标
 	 */
 	NonameGallery.prototype.getDragTarget = function () {
-		let flag = false, flag2 = false;
+		let flag1 = false, flag2 = false;
 		if (this.currentImg.width > this.windowWidth) {
 			if (
 				(this.diff.x > 0 && this.currentImg.x === 0) ||
 				(this.diff.x < 0 && this.currentImg.x === this.windowWidth - this.currentImg.width)
 			) {
-				flag = true;
+				flag1 = true;
 			}
 		} else {
 			if (this.currentImg.width >= this.previewList[this.index].width) {
 				flag2 = true;
 			}
 		}
-		if (this.dragDirection === 'h' && (flag || flag2)) {
+		if (this.dragDirection === 'h' && (flag1 || flag2)) {
 			this.dragTarget = 'wrap';
 		} else {
 			this.dragTarget = 'img';
@@ -727,13 +729,13 @@
 	}
 	/**
 	 * 获取两点距离
-	 * @param {object} point
-	 * @param {object} point2
+	 * @param {object} a 第一个点的位置
+	 * @param {object} b 第二个点的位置
 	 * @returns 
 	 */
-	NonameGallery.prototype.getDistance = function (point, point2) {
-		const x = point.x - point2.x;
-		const y = point.y - point2.y;
+	NonameGallery.prototype.getDistance = function (a, b) {
+		const x = a.x - b.x;
+		const y = a.y - b.y;
 		return Math.hypot(x, y); // Math.sqrt(x * x + y * y);
 	}
 	/**
@@ -859,6 +861,7 @@
 			}
 			this.bgOpacity = 1;
 			this.setCurrentImg(item.x, item.y, item.width, item.height, 1, '');
+			this.setIsAnimating();
 		}
 	}
 	/**
@@ -888,7 +891,7 @@
 	}
 	/**
 	 * 处理wrap滑动
-	 * @param {number} lastIndex
+	 * @param {number} lastIndex 上一张图片索引
 	 */
 	NonameGallery.prototype.handleWrapSwipe = function (lastIndex) {
 		const lastItem = this.previewList[lastIndex];
@@ -934,11 +937,12 @@
 		}
 		this.wrapX = wrapXTo;
 		this.counter.innerHTML = (this.index + 1) + ' / ' + this.previewList.length;
+		this.setIsAnimating();
 	}
 	/**
 	 * 保留n位小数
-	 * @param {number} num 
-	 * @param {number} n 
+	 * @param {number} num 数字
+	 * @param {number} n n位小数
 	 * @returns 
 	 */
 	NonameGallery.prototype.decimal = function (num, n) {
@@ -947,31 +951,32 @@
 	}
 	/**
 	 * 获取中心点
-	 * @param {object} point
-	 * @param {object} point2
+	 * @param {object} a 第一个点的位置
+	 * @param {object} b 第二个点的位置
 	 * @returns 
 	 */
-	NonameGallery.prototype.getCenter = function (point, point2) {
-		const x = (point.x + point2.x) / 2;
-		const y = (point.y + point2.y) / 2;
+	NonameGallery.prototype.getCenter = function (a, b) {
+		const x = (a.x + b.x) / 2;
+		const y = (a.y + b.y) / 2;
 		return { x: x, y: y }
 	}
 	/**
 	 * 曲线函数
-	 * @param {number} from 
-	 * @param {number} to 
-	 * @param {number} time 
-	 * @param {number} duration 
+	 * @param {number} from 开始位置
+	 * @param {number} to 结束位置
+	 * @param {number} time 动画已执行的时间
+	 * @param {number} duration 动画时长
 	 * @returns 
 	 */
 	NonameGallery.prototype.easeOut = function (from, to, time, duration) {
 		const change = to - from;
-		return -change * (time /= duration) * (time - 2) + from;
+		const t = time / duration;
+		return -change * t * (t - 2) + from;
 	}
 	/**
 	 * 动画函数
-	 * @param {function} func 
-	 * @param {number} duration
+	 * @param {function} func 回调函数
+	 * @param {number} duration 动画时长
 	 */
 	NonameGallery.prototype.raf = function (func, duration) {
 		const self = this;
