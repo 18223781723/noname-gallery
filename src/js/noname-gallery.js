@@ -616,20 +616,22 @@ NonameGallery.prototype.handlePinch = function (a, b) {
 	const MIN_SCALE = 0.7;
 	this.pinchTime = Date.now();
 	let ratio = this.getDistance(a, b) / this.getDistance(this.lastPoint1, this.lastPoint2);
-	this.currentImg.scale = this.decimal(this.currentImg.scale * ratio, 5);
-	this.currentImg.width = this.decimal(this.currentImg.width * ratio, 2);
-	this.currentImg.height = this.decimal(this.currentImg.height * ratio, 2);
+	let scale = this.decimal(this.currentImg.scale * ratio, 5);
 	const item = this.previewList[this.index];
-	if (this.currentImg.scale > item.maxScale) {
+	if (scale > item.maxScale) {
 		this.currentImg.scale = item.maxScale;
 		this.currentImg.width = item.maxWidth;
 		this.currentImg.height = item.maxHeight;
-		ratio = 1;
-	} else if (this.currentImg.scale < MIN_SCALE) {
+		ratio = item.maxScale / this.currentImg.scale;
+	} else if (scale < MIN_SCALE) {
 		this.currentImg.scale = MIN_SCALE;
 		this.currentImg.width = this.decimal(item.width * MIN_SCALE, 2);
 		this.currentImg.height = this.decimal(item.height * MIN_SCALE, 2);
-		ratio = 1;
+		ratio = MIN_SCALE / this.currentImg.scale;
+	} else {
+		this.currentImg.scale = scale;
+		this.currentImg.width = this.decimal(this.currentImg.width * ratio, 2);
+		this.currentImg.height = this.decimal(this.currentImg.height * ratio, 2);
 	}
 	this.currentImg.status = this.currentImg.scale < 1 ? 'shrink' : '';
 	const center = this.getCenter(a, b);
