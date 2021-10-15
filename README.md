@@ -3,7 +3,9 @@ JavaScript image gallery, easy to use, no dependencies.
 
 Demo: https://nonamegallery.codeman.top
 
-![二维码](https://nonamegallery.codeman.top/src/images/qrcode.png)
+![二维码](https://github.com/18223781723/noname-gallery/blob/main/src/images/qrcode.png)
+
+![demo](https://github.com/18223781723/noname-gallery/blob/main/src/images/demo.gif)
 
 
 # Getting Started
