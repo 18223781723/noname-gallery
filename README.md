@@ -1,12 +1,12 @@
 # noname-gallery
 JavaScript image gallery, easy to use, no dependencies.
 
+![demo](https://github.com/18223781723/noname-gallery/blob/main/src/images/demo.gif)
+
+# Demo
 Demo: https://nonamegallery.codeman.top
 
 ![二维码](https://github.com/18223781723/noname-gallery/blob/main/src/images/qrcode.png)
-
-![demo](https://github.com/18223781723/noname-gallery/blob/main/src/images/demo.gif)
-
 
 # Getting Started
 In a browser:
