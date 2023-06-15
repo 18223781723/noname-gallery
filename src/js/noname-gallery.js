@@ -619,15 +619,15 @@ NonameGallery.prototype.handlePinch = function (a, b) {
 	let scale = this.decimal(this.currentImg.scale * ratio, 5);
 	const item = this.previewList[this.index];
 	if (scale > item.maxScale) {
+		ratio = item.maxScale / this.currentImg.scale;
 		this.currentImg.scale = item.maxScale;
 		this.currentImg.width = item.maxWidth;
 		this.currentImg.height = item.maxHeight;
-		ratio = item.maxScale / this.currentImg.scale;
 	} else if (scale < MIN_SCALE) {
+		ratio = MIN_SCALE / this.currentImg.scale;
 		this.currentImg.scale = MIN_SCALE;
 		this.currentImg.width = this.decimal(item.width * MIN_SCALE, 2);
 		this.currentImg.height = this.decimal(item.height * MIN_SCALE, 2);
-		ratio = MIN_SCALE / this.currentImg.scale;
 	} else {
 		this.currentImg.scale = scale;
 		this.currentImg.width = this.decimal(this.currentImg.width * ratio, 2);
